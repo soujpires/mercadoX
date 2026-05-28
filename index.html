@@ -399,6 +399,301 @@ html,body{height:100%;font-family:var(--font);background:var(--offwhite);color:v
 .profile-av i{font-size:28px!important}
 
 
+
+/* ════════════════════════════════════════════════════════
+   PIPELINE / KANBAN
+════════════════════════════════════════════════════════ */
+const COL_COLORS = {
+  'Lead':'#378ADD','Estudo':'#EF9F27','Apresentação':'#7F77DD',
+  'Negociação':'#D4537E','Ganho':'#1D9E75','Perdido':'#E24B4A'
+};
+const DEFAULT_COLS = ['Lead','Estudo','Apresentação','Negociação','Ganho','Perdido'];
+
+let kanbanCols  = JSON.parse(localStorage.getItem('lm_kcols'))  || DEFAULT_COLS.map((t,i)=>({id:'col'+i,title:t,color:COL_COLORS[t]||'#888780'}));
+let kanbanCards = JSON.parse(localStorage.getItem('lm_cards'))  || [];
+let kNextId     = Math.max(0,...kanbanCards.map(c=>parseInt(c.id.replace('kc',''))||0))+1;
+let dragCardId  = null;
+let openCardId  = null;
+
+function persistKanban(){
+  localStorage.setItem('lm_kcols',  JSON.stringify(kanbanCols));
+  localStorage.setItem('lm_cards',  JSON.stringify(kanbanCards));
+}
+
+function renderKanban(){
+  const board = document.getElementById('kanban-board');
+  if(!board) return;
+  board.innerHTML = '';
+
+  kanbanCols.forEach(col => {
+    const cards = kanbanCards.filter(c => c.colId === col.id);
+    const colEl = document.createElement('div');
+    colEl.className = 'kanban-col';
+    colEl.dataset.colId = col.id;
+    colEl.addEventListener('dragover', e => { e.preventDefault(); colEl.classList.add('drag-over'); });
+    colEl.addEventListener('dragleave', () => colEl.classList.remove('drag-over'));
+    colEl.addEventListener('drop', e => { e.preventDefault(); colEl.classList.remove('drag-over'); dropCard(col.id); });
+
+    colEl.innerHTML = `
+      <div class="col-color-bar" style="background:${col.color}"></div>
+      <div class="col-header">
+        <div class="col-title-wrap">
+          <span class="col-title">${escHtml(col.title)}</span>
+          <span class="col-count">${cards.length}</span>
+        </div>
+        <button class="col-del-btn" onclick="deleteCol('${col.id}')" title="Excluir coluna"><i class="ti ti-trash"></i></button>
+      </div>
+      <div class="col-cards" id="cards-${col.id}">
+        ${cards.map(c => buildKCard(c, col.color)).join('')}
+      </div>
+      <button class="col-add-btn" onclick="quickAddCard('${col.id}')"><i class="ti ti-plus"></i> Adicionar</button>
+    `;
+    board.appendChild(colEl);
+  });
+
+  // Add column button
+  const addCol = document.createElement('div');
+  addCol.className = 'add-col-card';
+  addCol.innerHTML = '<i class="ti ti-plus"></i> Nova coluna';
+  addCol.onclick = () => {
+    const title = prompt('Nome da nova coluna:');
+    if(!title) return;
+    const color = '#'+Math.floor(Math.random()*0xAAAAAA+0x555555).toString(16);
+    kanbanCols.push({id:'col'+Date.now(), title:title.trim(), color});
+    persistKanban(); renderKanban();
+  };
+  board.appendChild(addCol);
+}
+
+function buildKCard(c, color){
+  return `<div class="k-card" id="kcard-${c.id}" draggable="true"
+    ondragstart="startDrag('${c.id}')"
+    ondragend="endDrag()"
+    onclick="openCardPanel('${c.id}')">
+    <div class="k-card-name">${escHtml(c.nome)}</div>
+    <div class="k-card-product">${escHtml(c.produto||'—')}</div>
+    <div class="k-card-footer">
+      <span class="k-card-value">${escHtml(c.valor||'—')}</span>
+      <div class="k-card-dot" style="background:${color}"></div>
+    </div>
+  </div>`;
+}
+
+function startDrag(id){ dragCardId=id; setTimeout(()=>{const el=document.getElementById('kcard-'+id);if(el)el.classList.add('dragging');},0); }
+function endDrag(){ if(dragCardId){const el=document.getElementById('kcard-'+dragCardId);if(el)el.classList.remove('dragging');} dragCardId=null; }
+function dropCard(colId){ if(!dragCardId)return; const c=kanbanCards.find(x=>x.id===dragCardId); if(c){c.colId=colId;persistKanban();renderKanban();} dragCardId=null; }
+
+function deleteCol(colId){
+  if(!confirm('Excluir esta coluna? Os cards serão movidos para a primeira coluna.')) return;
+  const first = kanbanCols.find(c=>c.id!==colId);
+  if(first) kanbanCards.filter(c=>c.colId===colId).forEach(c=>c.colId=first.id);
+  kanbanCols = kanbanCols.filter(c=>c.id!==colId);
+  persistKanban(); renderKanban();
+}
+
+function quickAddCard(colId){
+  document.getElementById('es-coluna').value = colId;
+  openEstudoModal();
+}
+
+/* ESTUDO MODAL */
+function openEstudoModal(){
+  const sel = document.getElementById('es-coluna');
+  sel.innerHTML = kanbanCols.map(c=>`<option value="${c.id}">${escHtml(c.title)}</option>`).join('');
+  ['es-nome','es-produto','es-valor','es-obs'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('estudo-overlay').classList.add('open');
+  document.getElementById('estudo-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('es-nome').focus(),100);
+}
+function closeEstudoModal(){
+  document.getElementById('estudo-overlay').classList.remove('open');
+  document.getElementById('estudo-modal').classList.remove('open');
+  document.getElementById('es-rec-dropdown').style.display='none';
+}
+function searchEstudoRec(q){
+  const dd = document.getElementById('es-rec-dropdown');
+  const val = (q||'').trim().toLowerCase();
+  const results = contacts.filter(c=>!val||c.nome.toLowerCase().includes(val)||(c.prof||'').toLowerCase().includes(val)).slice(0,8);
+  if(!results.length){ dd.innerHTML=`<div class="rec-empty">Nenhum encontrado — será criado como novo</div>`; dd.style.display='block'; return; }
+  dd.innerHTML = results.map(c=>`<div class="rec-option" onmousedown="selectEstudoRec('${escHtml(c.nome).replace(/'/g,"\\'")}')">
+    ${highlight(c.nome,val)} ${c.prof?`<span style="font-size:11px;color:var(--gray)"> — ${escHtml(c.prof)}</span>`:''}
+  </div>`).join('');
+  dd.style.display='block';
+}
+function selectEstudoRec(nome){ document.getElementById('es-nome').value=nome; document.getElementById('es-rec-dropdown').style.display='none'; }
+document.addEventListener('click',e=>{ const dd=document.getElementById('es-rec-dropdown'); const inp=document.getElementById('es-nome'); if(dd&&inp&&!dd.contains(e.target)&&e.target!==inp) dd.style.display='none'; });
+
+function saveEstudo(){
+  const nome = (document.getElementById('es-nome').value||'').trim();
+  if(!nome){alert('Informe o nome do cliente.');return;}
+  const card = {
+    id:'kc'+kNextId++,
+    nome, produto:(document.getElementById('es-produto').value||'').trim(),
+    valor:(document.getElementById('es-valor').value||'').trim(),
+    colId:document.getElementById('es-coluna').value,
+    obs:(document.getElementById('es-obs').value||'').trim(),
+    followups:[], createdAt:new Date().toISOString()
+  };
+  kanbanCards.push(card);
+  persistKanban(); closeEstudoModal(); renderKanban();
+}
+
+/* CARD DETAIL PANEL */
+function openCardPanel(id){
+  openCardId=id;
+  const c=kanbanCards.find(x=>x.id===id); if(!c)return;
+  const col=kanbanCols.find(x=>x.id===c.colId);
+  document.getElementById('cdp-name').textContent=c.nome;
+  document.getElementById('cdp-sub').textContent=`${c.produto||'—'} · ${c.valor||'—'}`;
+  document.getElementById('cdp-produto').textContent=c.produto||'—';
+  document.getElementById('cdp-valor').textContent=c.valor||'—';
+  document.getElementById('cdp-coluna').textContent=col?col.title:'—';
+  document.getElementById('cdp-obs').value=c.obs||'';
+  renderFuTimeline(c);
+  document.getElementById('fu-input-wrap').style.display='none';
+  document.getElementById('card-panel-overlay').classList.add('open');
+  document.getElementById('card-detail-panel').classList.add('open');
+}
+function closeCardPanel(){ document.getElementById('card-panel-overlay').classList.remove('open'); document.getElementById('card-detail-panel').classList.remove('open'); openCardId=null; }
+function saveCardObs(){ const c=kanbanCards.find(x=>x.id===openCardId); if(!c)return; c.obs=document.getElementById('cdp-obs').value; persistKanban(); }
+function moveCardLeft(){
+  const c=kanbanCards.find(x=>x.id===openCardId); if(!c)return;
+  const idx=kanbanCols.findIndex(x=>x.id===c.colId); if(idx>0){c.colId=kanbanCols[idx-1].id; persistKanban(); renderKanban(); openCardPanel(openCardId);}
+}
+function moveCardRight(){
+  const c=kanbanCards.find(x=>x.id===openCardId); if(!c)return;
+  const idx=kanbanCols.findIndex(x=>x.id===c.colId); if(idx<kanbanCols.length-1){c.colId=kanbanCols[idx+1].id; persistKanban(); renderKanban(); openCardPanel(openCardId);}
+}
+function deleteCard(){
+  if(!confirm('Excluir este card?'))return;
+  kanbanCards=kanbanCards.filter(x=>x.id!==openCardId);
+  persistKanban(); renderKanban(); closeCardPanel();
+}
+
+/* FOLLOW-UP */
+function showFuInput(){ const w=document.getElementById('fu-input-wrap'); w.style.display=w.style.display==='none'?'flex':'none'; if(w.style.display==='flex') document.getElementById('fu-new-text').focus(); }
+function saveFu(){
+  const txt=(document.getElementById('fu-new-text').value||'').trim();
+  const dt=document.getElementById('fu-new-date').value;
+  if(!txt)return;
+  const c=kanbanCards.find(x=>x.id===openCardId); if(!c)return;
+  c.followups.unshift({dt:dt?new Date(dt).toISOString():new Date().toISOString(), txt});
+  persistKanban();
+  document.getElementById('fu-new-text').value='';
+  document.getElementById('fu-new-date').value='';
+  document.getElementById('fu-input-wrap').style.display='none';
+  renderFuTimeline(c);
+}
+function renderFuTimeline(c){
+  const el=document.getElementById('fu-timeline'); if(!el)return;
+  if(!c.followups||!c.followups.length){el.innerHTML='<div style="font-size:12px;color:var(--gray);padding:8px 0">Nenhum follow-up ainda.</div>';return;}
+  el.innerHTML=c.followups.map((f,i,arr)=>`<div class="fu-tl-item">
+    <div class="fu-tl-dot-col"><div class="fu-tl-dot${i>0?' old':''}"></div>${i<arr.length-1?'<div class="fu-tl-line"></div>':''}</div>
+    <div><div class="fu-tl-date">${fmtDate(f.dt)}</div><div class="fu-tl-text">${escHtml(f.txt)}</div></div>
+  </div>`).join('');
+}
+
+/* ════════════════════════════════════════════════════════
+   AGENDA
+════════════════════════════════════════════════════════ */
+let agendaEvents  = JSON.parse(localStorage.getItem('lm_events'))||[];
+let agEvNextId    = Math.max(0,...agendaEvents.map(e=>parseInt(e.id.replace('ev',''))||0))+1;
+let agendaWeekStart = getWeekStart(new Date());
+
+function getWeekStart(d){
+  const date=new Date(d);
+  const day=date.getDay();
+  const diff=date.getDate()-(day===0?6:day-1);
+  date.setDate(diff);
+  date.setHours(0,0,0,0);
+  return date;
+}
+function agendaNav(dir){ agendaWeekStart=new Date(agendaWeekStart); agendaWeekStart.setDate(agendaWeekStart.getDate()+dir*7); renderAgenda(); }
+function agendaGoToday(){ agendaWeekStart=getWeekStart(new Date()); renderAgenda(); }
+
+const HOURS = [8,9,10,11,12,13,14,15,16,17,18,19];
+const DAYS_PT = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+
+function renderAgenda(){
+  const headerEl=document.getElementById('ag-day-headers');
+  const timesEl=document.getElementById('ag-times');
+  const colsEl=document.getElementById('ag-cols');
+  const labelEl=document.getElementById('ag-week-label');
+  if(!headerEl)return;
+
+  const today=new Date(); today.setHours(0,0,0,0);
+  const days=Array.from({length:7},(_,i)=>{ const d=new Date(agendaWeekStart); d.setDate(d.getDate()+i); return d; });
+
+  // Week label
+  const fmt=d=>d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
+  labelEl.textContent=`${fmt(days[0])} — ${fmt(days[6])} ${days[0].getFullYear()}`;
+
+  // Day headers
+  headerEl.innerHTML = `<div class="ag-corner"></div>` +
+    days.map((d,i)=>{
+      const isToday=d.getTime()===today.getTime();
+      const isWk=i>=5;
+      return `<div class="ag-day-col-header">
+        <div class="ag-day-name">${DAYS_PT[i]}</div>
+        <div class="ag-day-num${isToday?' today-num':isWk?' weekend':''}">${d.getDate()}</div>
+      </div>`;
+    }).join('');
+
+  // Times
+  timesEl.innerHTML = HOURS.map(h=>`<div class="ag-time-slot">${h}h</div>`).join('');
+
+  // Cols
+  colsEl.innerHTML = days.map((d,di)=>{
+    const isWk=di>=5;
+    const isToday=d.getTime()===today.getTime();
+    const dayStr=d.toISOString().slice(0,10);
+    const dayEvents=agendaEvents.filter(e=>e.date===dayStr);
+
+    const cells=HOURS.map(h=>{
+      const evs=dayEvents.filter(e=>{const eh=parseInt(e.time.split(':')[0]);return eh===h;});
+      const evsHtml=evs.map(e=>{
+        const topPct=((parseInt(e.time.split(':')[1])||0)/60)*100;
+        const heightPx=Math.round((e.duration/60)*56);
+        return `<div class="ag-event ag-ev-${e.type}" style="top:${topPct}%;height:${heightPx}px" title="${escHtml(e.title)}">
+          <div class="ag-ev-title">${escHtml(e.title)}</div>
+        </div>`;
+      }).join('');
+      return `<div class="ag-hour-cell">${evsHtml}</div>`;
+    }).join('');
+
+    return `<div class="ag-col${isWk?' weekend-col':''}${isToday?' today-col':''}">${cells}</div>`;
+  }).join('');
+}
+
+/* EVENT MODAL */
+function openEventModal(){
+  const today=new Date().toISOString().slice(0,10);
+  const nowH=new Date().getHours();
+  document.getElementById('ev-title').value='';
+  document.getElementById('ev-date').value=today;
+  document.getElementById('ev-time').value=`${String(nowH).padStart(2,'0')}:00`;
+  document.getElementById('ev-notes').value='';
+  document.getElementById('event-overlay').classList.add('open');
+  document.getElementById('event-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('ev-title').focus(),100);
+}
+function closeEventModal(){ document.getElementById('event-overlay').classList.remove('open'); document.getElementById('event-modal').classList.remove('open'); }
+function saveEvent(){
+  const title=(document.getElementById('ev-title').value||'').trim();
+  if(!title){alert('Informe o título do evento.');return;}
+  agendaEvents.push({
+    id:'ev'+agEvNextId++,
+    title, date:document.getElementById('ev-date').value,
+    time:document.getElementById('ev-time').value,
+    duration:parseInt(document.getElementById('ev-dur').value)||60,
+    type:document.getElementById('ev-type').value,
+    notes:document.getElementById('ev-notes').value.trim()
+  });
+  localStorage.setItem('lm_events',JSON.stringify(agendaEvents));
+  closeEventModal(); renderAgenda();
+}
+
+
 /* ── LOGIN ── */
 .login-screen{position:fixed;inset:0;background:var(--navy);display:flex;align-items:center;justify-content:center;z-index:999;padding:20px}
 .login-box{width:100%;max-width:380px;display:flex;flex-direction:column;align-items:center}
@@ -425,6 +720,134 @@ html,body{height:100%;font-family:var(--font);background:var(--offwhite);color:v
 .login-divider-text{font-size:10px;color:rgba(255,255,255,0.25)}
 .login-hint{background:rgba(201,168,76,0.08);border:0.5px solid rgba(201,168,76,0.2);border-radius:8px;padding:8px 12px;font-size:11px;color:rgba(201,168,76,0.7);display:flex;align-items:center;gap:6px}
 .login-hint i{font-size:13px;flex-shrink:0}
+
+/* ── PIPELINE / KANBAN ── */
+.pipeline-wrap{display:flex;flex-direction:column;height:100%;overflow:hidden}
+.pipeline-topbar{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 16px;flex-shrink:0}
+.pipeline-title{font-size:18px;font-weight:500;color:var(--text);display:flex;align-items:center;gap:8px}
+.pipeline-title i{color:var(--gold);font-size:20px}
+.btn-novo-estudo{background:var(--navy);color:var(--gold);border:none;border-radius:var(--r-sm);padding:9px 18px;font-size:13px;font-weight:500;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:6px;transition:background 0.15s}
+.btn-novo-estudo:hover{background:var(--navy-light)}
+.btn-novo-estudo i{font-size:15px}
+.kanban-board{display:flex;gap:12px;padding:0 24px 24px;overflow-x:auto;flex:1;align-items:flex-start}
+.kanban-col{background:var(--offwhite);border-radius:var(--r-md);border:0.5px solid var(--border);min-width:220px;max-width:220px;display:flex;flex-direction:column;overflow:hidden;transition:border-color 0.15s}
+.kanban-col.drag-over{border-color:var(--gold);background:rgba(201,168,76,0.04)}
+.col-color-bar{height:3px;flex-shrink:0}
+.col-header{padding:10px 12px 8px;display:flex;align-items:center;justify-content:space-between}
+.col-title-wrap{display:flex;align-items:center;gap:7px}
+.col-title{font-size:12px;font-weight:500;color:var(--text)}
+.col-count{font-size:10px;background:var(--white);border:0.5px solid var(--border);border-radius:20px;padding:2px 8px;color:var(--gray)}
+.col-del-btn{width:20px;height:20px;border-radius:5px;border:none;background:none;color:var(--gray-light);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.15s}
+.kanban-col:hover .col-del-btn{opacity:1}
+.col-del-btn:hover{color:#E24B4A;background:#FCEBEB}
+.col-cards{padding:6px 8px;display:flex;flex-direction:column;gap:6px;min-height:80px}
+.k-card{background:var(--white);border-radius:var(--r-sm);border:0.5px solid var(--border);padding:10px 11px;cursor:grab;transition:border-color 0.15s,box-shadow 0.15s;user-select:none}
+.k-card:active{cursor:grabbing;box-shadow:0 4px 12px rgba(13,27,64,0.12);border-color:var(--gray-light)}
+.k-card.dragging{opacity:0.5}
+.k-card:hover{border-color:var(--gray-light)}
+.k-card-name{font-size:12px;font-weight:500;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.k-card-product{font-size:10px;color:var(--gray);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.k-card-footer{display:flex;align-items:center;justify-content:space-between;margin-top:8px;padding-top:7px;border-top:0.5px solid var(--border)}
+.k-card-value{font-size:11px;font-weight:500;color:#27500A}
+.k-card-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.col-add-btn{padding:7px 10px;display:flex;align-items:center;gap:5px;color:var(--gray);font-size:11px;cursor:pointer;border-top:0.5px solid var(--border);transition:color 0.15s;background:none;border-left:none;border-right:none;border-bottom:none;width:100%;font-family:var(--font)}
+.col-add-btn:hover{color:var(--navy)}
+.col-add-btn i{font-size:13px}
+.add-col-card{min-width:160px;max-width:160px;background:transparent;border:0.5px dashed var(--border);border-radius:var(--r-md);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 16px;cursor:pointer;color:var(--gray);font-size:12px;gap:8px;transition:all 0.15s;flex-shrink:0}
+.add-col-card i{font-size:22px;color:var(--gray-light)}
+.add-col-card:hover{background:var(--offwhite);border-color:var(--navy);color:var(--navy)}
+.add-col-card:hover i{color:var(--navy)}
+
+/* CARD DETAIL PANEL */
+.card-panel-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:70;display:none}
+.card-panel-overlay.open{display:block}
+.card-detail-panel{position:fixed;right:0;top:0;bottom:0;width:620px;background:var(--white);z-index:71;display:none;flex-direction:column;box-shadow:-4px 0 24px rgba(13,27,64,0.12);overflow:hidden}
+.card-detail-panel.open{display:flex}
+.cdp-header{padding:18px 20px 14px;border-bottom:0.5px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;background:var(--navy)}
+.cdp-name{font-size:17px;font-weight:500;color:#fff}
+.cdp-sub{font-size:11px;color:rgba(255,255,255,0.5);margin-top:3px}
+.cdp-body{display:flex;flex:1;overflow:hidden}
+.cdp-left{flex:1;padding:18px 20px;overflow-y:auto;border-right:0.5px solid var(--border)}
+.cdp-right{width:240px;padding:16px;overflow-y:auto;background:var(--offwhite)}
+.cdp-fields{display:flex;flex-direction:column;gap:8px}
+.cdp-field{display:flex;align-items:center;gap:8px;font-size:12px}
+.cdp-field span{color:var(--gray);min-width:80px}
+.cdp-field strong{color:var(--text);font-weight:500}
+.cdp-textarea{width:100%;min-height:100px;border:0.5px solid var(--border);border-radius:var(--r-sm);padding:9px 11px;font-size:13px;color:var(--text);font-family:var(--font);resize:vertical;outline:none;transition:border-color 0.15s}
+.cdp-textarea:focus{border-color:var(--gold)}
+.cdp-save-btn{margin-top:8px;padding:8px 16px;border-radius:var(--r-sm);background:var(--navy);color:var(--gold);border:none;font-size:12px;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:5px;transition:background 0.15s}
+.cdp-save-btn:hover{background:var(--navy-light)}
+.cdp-move-btn{flex:1;padding:8px;border-radius:var(--r-sm);font-size:12px;cursor:pointer;font-family:var(--font);border:0.5px solid var(--border);background:none;color:var(--gray);display:flex;align-items:center;justify-content:center;gap:4px;transition:all 0.15s}
+.cdp-move-btn:hover{background:var(--offwhite)}
+.cdp-move-btn.pri{background:var(--navy);color:var(--gold);border:none}
+.cdp-move-btn.pri:hover{background:var(--navy-light)}
+.cdp-del-btn{width:36px;height:36px;border-radius:var(--r-sm);border:0.5px solid #FCEBEB;background:#FCEBEB;color:#A32D2D;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all 0.15s}
+.cdp-del-btn:hover{background:#F7C1C1}
+.cdp-fu-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;font-size:11px;font-weight:500;color:var(--text)}
+.fu-add-btn{background:none;border:none;color:var(--gold);font-size:11px;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:3px}
+.fu-input-wrap{background:var(--white);border:0.5px solid var(--gold-border);border-radius:var(--r-sm);padding:10px;margin-bottom:10px;display:flex;flex-direction:column;gap:6px}
+.fu-textarea{width:100%;min-height:56px;border:0.5px solid var(--border);border-radius:var(--r-sm);padding:7px 9px;font-size:12px;color:var(--text);font-family:var(--font);resize:none;outline:none}
+.fu-textarea:focus{border-color:var(--gold)}
+.fu-date-input{width:100%;padding:7px 9px;border:0.5px solid var(--border);border-radius:var(--r-sm);font-size:12px;color:var(--text);font-family:var(--font);outline:none}
+.fu-date-input:focus{border-color:var(--gold)}
+.fu-save-btn{padding:7px 14px;border-radius:var(--r-sm);background:var(--navy);color:var(--gold);border:none;font-size:11px;cursor:pointer;font-family:var(--font);align-self:flex-end}
+.fu-timeline{display:flex;flex-direction:column}
+.fu-tl-item{display:flex;gap:8px;padding:8px 0;border-top:0.5px solid var(--border)}
+.fu-tl-item:first-child{border-top:none}
+.fu-tl-dot-col{display:flex;flex-direction:column;align-items:center;padding-top:3px;flex-shrink:0}
+.fu-tl-dot{width:8px;height:8px;border-radius:50%;background:var(--gold);flex-shrink:0}
+.fu-tl-dot.old{background:var(--gray-light)}
+.fu-tl-line{width:1px;flex:1;background:var(--border);min-height:8px;margin-top:3px}
+.fu-tl-date{font-size:10px;color:var(--gray);margin-bottom:2px}
+.fu-tl-text{font-size:12px;color:var(--text)}
+
+/* ── AGENDA ── */
+.agenda-wrap{display:flex;flex-direction:column;height:100%;overflow:hidden}
+.agenda-topbar{display:flex;align-items:center;justify-content:space-between;padding:20px 24px 16px;flex-shrink:0}
+.agenda-title{font-size:18px;font-weight:500;color:var(--text);display:flex;align-items:center;gap:8px}
+.agenda-title i{color:var(--gold);font-size:20px}
+.agenda-nav-btns{display:flex;align-items:center;gap:8px}
+.ag-nav-btn{width:30px;height:30px;border-radius:var(--r-sm);border:0.5px solid var(--border);background:var(--white);display:flex;align-items:center;justify-content:center;font-size:14px;color:var(--gray);cursor:pointer;transition:all 0.15s}
+.ag-nav-btn:hover{background:var(--offwhite)}
+.ag-week-label{font-size:13px;color:var(--text);min-width:180px;text-align:center}
+.ag-today-btn{padding:6px 14px;border-radius:var(--r-sm);border:0.5px solid var(--border);background:var(--white);font-size:12px;color:var(--text);cursor:pointer;font-family:var(--font);transition:all 0.15s}
+.ag-today-btn:hover{background:var(--offwhite)}
+.ag-add-btn{padding:6px 14px;border-radius:var(--r-sm);border:none;background:var(--navy);color:var(--gold);font-size:12px;cursor:pointer;font-family:var(--font);display:flex;align-items:center;gap:5px;transition:background 0.15s}
+.ag-add-btn:hover{background:var(--navy-light)}
+.agenda-grid-wrap{flex:1;overflow:hidden;display:flex;flex-direction:column;margin:0 24px 24px;background:var(--white);border:0.5px solid var(--border);border-radius:var(--r-md)}
+.agenda-day-headers{display:grid;grid-template-columns:56px repeat(7,1fr);border-bottom:0.5px solid var(--border);flex-shrink:0}
+.ag-corner{border-right:0.5px solid var(--border)}
+.ag-day-col-header{padding:10px 6px;text-align:center;border-right:0.5px solid var(--border)}
+.ag-day-col-header:last-child{border-right:none}
+.ag-day-name{font-size:10px;color:var(--gray);text-transform:uppercase;letter-spacing:0.05em}
+.ag-day-num{font-size:18px;font-weight:500;color:var(--text);margin-top:3px;line-height:1}
+.ag-day-num.today-num{width:32px;height:32px;border-radius:50%;background:var(--navy);color:var(--gold);display:flex;align-items:center;justify-content:center;font-size:15px;margin:3px auto 0}
+.ag-day-num.weekend{color:var(--gray-light)}
+.agenda-body-wrap{display:flex;flex:1;overflow-y:auto}
+.agenda-times{width:56px;flex-shrink:0;border-right:0.5px solid var(--border)}
+.ag-time-slot{height:56px;display:flex;align-items:flex-start;justify-content:flex-end;padding:4px 8px 0 0;font-size:10px;color:var(--gray);border-bottom:0.5px solid var(--border)}
+.agenda-cols{display:grid;grid-template-columns:repeat(7,1fr);flex:1}
+.ag-col{border-right:0.5px solid var(--border);position:relative}
+.ag-col:last-child{border-right:none}
+.ag-col.weekend-col{background:rgba(0,0,0,0.01)}
+.ag-col.today-col{background:rgba(13,27,64,0.02)}
+.ag-hour-cell{height:56px;border-bottom:0.5px solid var(--border);position:relative}
+.ag-event{position:absolute;left:2px;right:2px;border-radius:4px;padding:3px 6px;font-size:10px;font-weight:500;overflow:hidden;cursor:pointer;z-index:2}
+.ag-ev-reunion{background:#E6F1FB;color:#0C447C;border-left:2px solid #185FA5}
+.ag-ev-followup{background:#FAEEDA;color:#633806;border-left:2px solid #EF9F27}
+.ag-ev-apresentacao{background:#EEEDFE;color:#3C3489;border-left:2px solid #7F77DD}
+.ag-ev-ligacao{background:#EAF3DE;color:#27500A;border-left:2px solid #1D9E75}
+.ag-ev-outro{background:#F1EFE8;color:#444441;border-left:2px solid #888780}
+.ag-ev-title{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+@media(max-width:767px){
+  .card-detail-panel{width:100%;right:0;left:0}
+  .kanban-board{padding:0 16px 24px}
+  .pipeline-topbar{padding:16px 16px 12px}
+  .agenda-topbar{padding:16px 16px 12px;flex-direction:column;gap:10px;align-items:flex-start}
+  .agenda-grid-wrap{margin:0 16px 16px}
+  .ag-week-label{min-width:auto}
+}
+
 </style>
 </head>
 <body>
@@ -445,6 +868,8 @@ html,body{height:100%;font-family:var(--font);background:var(--offwhite);color:v
     <button class="drawer-item" onclick="navigate('dashboard')"     id="mnav-dashboard"><i class="ti ti-layout-dashboard"></i> Dashboard</button>
     <button class="drawer-item" onclick="navigate('ranking')"       id="mnav-ranking"><i class="ti ti-trophy"></i> Ranking</button>
     <button class="drawer-item" onclick="navigate('reports')"       id="mnav-reports"><i class="ti ti-file-spreadsheet"></i> Relatórios</button>
+    <button class="drawer-item" onclick="navigate('pipeline')"      id="mnav-pipeline"><i class="ti ti-layout-kanban"></i> Pipeline</button>
+    <button class="drawer-item" onclick="navigate('agenda')"        id="mnav-agenda"><i class="ti ti-calendar-week"></i> Agenda</button>
     <button class="drawer-item" onclick="navigate('profile')"       id="mnav-profile"><i class="ti ti-user-circle"></i> Meu perfil</button>
   </div>
   <button class="drawer-close-btn" onclick="closeDrawer()"><i class="ti ti-x"></i> Fechar</button>
@@ -475,6 +900,8 @@ html,body{height:100%;font-family:var(--font);background:var(--offwhite);color:v
       <button class="sb-item" onclick="navigate('dashboard')"        id="snav-dashboard"><i class="ti ti-layout-dashboard"></i><span class="sb-label">Dashboard</span></button>
       <button class="sb-item" onclick="navigate('ranking')"          id="snav-ranking"><i class="ti ti-trophy"></i><span class="sb-label">Ranking</span></button>
       <button class="sb-item" onclick="navigate('reports')"          id="snav-reports"><i class="ti ti-file-spreadsheet"></i><span class="sb-label">Relatórios</span></button>
+      <button class="sb-item" onclick="navigate('pipeline')"        id="snav-pipeline"><i class="ti ti-layout-kanban"></i><span class="sb-label">Pipeline</span></button>
+      <button class="sb-item" onclick="navigate('agenda')"          id="snav-agenda"><i class="ti ti-calendar-week"></i><span class="sb-label">Agenda</span></button>
       <button class="sb-item" onclick="navigate('profile')"          id="snav-profile"><i class="ti ti-user-circle"></i><span class="sb-label">Meu perfil</span></button>
     </nav>
     <div class="sb-profile" onclick="navigate('profile')" style="cursor:pointer">
@@ -565,6 +992,45 @@ html,body{height:100%;font-family:var(--font);background:var(--offwhite);color:v
       </div>
     </section>
 
+
+    <!-- PIPELINE -->
+    <section class="page" id="page-pipeline">
+      <div class="page-scroll">
+        <div class="pipeline-wrap">
+          <div class="pipeline-topbar">
+            <div class="pipeline-title"><i class="ti ti-layout-kanban"></i> Pipeline de estudos</div>
+            <button class="btn-novo-estudo" onclick="openEstudoModal()"><i class="ti ti-plus"></i> Novo estudo</button>
+          </div>
+          <div class="kanban-board" id="kanban-board"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- AGENDA -->
+    <section class="page" id="page-agenda">
+      <div class="page-scroll">
+        <div class="agenda-wrap">
+          <div class="agenda-topbar">
+            <div class="agenda-title"><i class="ti ti-calendar-week"></i> Agenda</div>
+            <div class="agenda-nav-btns">
+              <button class="ag-nav-btn" onclick="agendaNav(-1)"><i class="ti ti-chevron-left"></i></button>
+              <span class="ag-week-label" id="ag-week-label"></span>
+              <button class="ag-nav-btn" onclick="agendaNav(1)"><i class="ti ti-chevron-right"></i></button>
+              <button class="ag-today-btn" onclick="agendaGoToday()">Hoje</button>
+              <button class="ag-add-btn" onclick="openEventModal()"><i class="ti ti-plus"></i> Evento</button>
+            </div>
+          </div>
+          <div class="agenda-grid-wrap">
+            <div class="agenda-day-headers" id="ag-day-headers"></div>
+            <div class="agenda-body-wrap">
+              <div class="agenda-times" id="ag-times"></div>
+              <div class="agenda-cols" id="ag-cols"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- PROFILE -->
     <section class="page" id="page-profile">
       <div class="page-scroll">
@@ -580,6 +1046,131 @@ html,body{height:100%;font-family:var(--font);background:var(--offwhite);color:v
 
 <!-- FAB -->
 <button class="fab" onclick="openModal()" aria-label="Novo contato"><i class="ti ti-plus"></i></button>
+
+
+<!-- ESTUDO MODAL -->
+<div class="modal-overlay" id="estudo-overlay" onclick="closeEstudoModal()"></div>
+<div class="modal" id="estudo-modal">
+  <div class="modal-header">
+    <h2 class="modal-title" id="estudo-modal-title">Novo estudo</h2>
+    <button class="modal-close" onclick="closeEstudoModal()"><i class="ti ti-x"></i></button>
+  </div>
+  <div class="modal-body">
+    <div class="form-section-label">Cliente</div>
+    <div class="form-grid">
+      <div class="fg full rec-wrap">
+        <label>Nome (buscar no Lead Map ou digitar novo)</label>
+        <input type="text" id="es-nome" placeholder="Digite para buscar..." autocomplete="off" oninput="searchEstudoRec(this.value)" onfocus="searchEstudoRec(this.value)">
+        <div class="rec-dropdown" id="es-rec-dropdown" style="display:none"></div>
+      </div>
+    </div>
+    <div class="form-section-label">Produto</div>
+    <div class="form-grid">
+      <div class="fg full">
+        <label>Produto</label>
+        <input type="text" id="es-produto" placeholder="Ex: WL30, Previdência, Vida...">
+      </div>
+      <div class="fg full">
+        <label>Contribuição mensal</label>
+        <input type="text" id="es-valor" placeholder="Ex: R$ 500/mês">
+      </div>
+    </div>
+    <div class="form-section-label">Pipeline</div>
+    <div class="form-grid">
+      <div class="fg full">
+        <label>Coluna inicial</label>
+        <select id="es-coluna"></select>
+      </div>
+      <div class="fg full">
+        <label>Observações iniciais</label>
+        <textarea id="es-obs" placeholder="Notas sobre este estudo..."></textarea>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn-cancel" onclick="closeEstudoModal()">Cancelar</button>
+    <button class="btn-save" onclick="saveEstudo()"><i class="ti ti-check"></i> Salvar estudo</button>
+  </div>
+</div>
+
+<!-- CARD DETAIL PANEL -->
+<div class="card-panel-overlay" id="card-panel-overlay" onclick="closeCardPanel()"></div>
+<div class="card-detail-panel" id="card-detail-panel">
+  <div class="cdp-header">
+    <div>
+      <div class="cdp-name" id="cdp-name"></div>
+      <div class="cdp-sub" id="cdp-sub"></div>
+    </div>
+    <button class="modal-close" onclick="closeCardPanel()"><i class="ti ti-x"></i></button>
+  </div>
+  <div class="cdp-body">
+    <div class="cdp-left">
+      <div class="cdp-fields">
+        <div class="cdp-field"><span>Produto</span><strong id="cdp-produto"></strong></div>
+        <div class="cdp-field"><span>Contribuição</span><strong id="cdp-valor"></strong></div>
+        <div class="cdp-field"><span>Coluna</span><strong id="cdp-coluna"></strong></div>
+      </div>
+      <div class="form-section-label" style="margin-top:16px">Anotações</div>
+      <textarea class="cdp-textarea" id="cdp-obs" placeholder="Adicionar anotação..."></textarea>
+      <button class="cdp-save-btn" onclick="saveCardObs()"><i class="ti ti-check"></i> Salvar anotação</button>
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button class="cdp-move-btn" onclick="moveCardLeft()"><i class="ti ti-arrow-left"></i> Voltar</button>
+        <button class="cdp-move-btn pri" onclick="moveCardRight()">Avançar <i class="ti ti-arrow-right"></i></button>
+        <button class="cdp-del-btn" onclick="deleteCard()"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>
+    <div class="cdp-right">
+      <div class="cdp-fu-header">
+        <span>Follow-up</span>
+        <button class="fu-add-btn" onclick="showFuInput()"><i class="ti ti-plus"></i> Novo</button>
+      </div>
+      <div class="fu-input-wrap" id="fu-input-wrap" style="display:none">
+        <textarea class="fu-textarea" id="fu-new-text" placeholder="Descrição do follow-up..."></textarea>
+        <input type="datetime-local" id="fu-new-date" class="fu-date-input">
+        <button class="fu-save-btn" onclick="saveFu()">Salvar</button>
+      </div>
+      <div class="fu-timeline" id="fu-timeline"></div>
+    </div>
+  </div>
+</div>
+
+<!-- EVENT MODAL -->
+<div class="modal-overlay" id="event-overlay" onclick="closeEventModal()"></div>
+<div class="modal" id="event-modal">
+  <div class="modal-header">
+    <h2 class="modal-title">Novo evento</h2>
+    <button class="modal-close" onclick="closeEventModal()"><i class="ti ti-x"></i></button>
+  </div>
+  <div class="modal-body">
+    <div class="form-grid">
+      <div class="fg full"><label>Título *</label><input type="text" id="ev-title" placeholder="Ex: Reunião com Carlos"></div>
+      <div class="fg"><label>Data</label><input type="date" id="ev-date"></div>
+      <div class="fg"><label>Horário</label><input type="time" id="ev-time"></div>
+      <div class="fg full"><label>Duração</label>
+        <select id="ev-dur">
+          <option value="30">30 minutos</option>
+          <option value="60" selected>1 hora</option>
+          <option value="90">1h30</option>
+          <option value="120">2 horas</option>
+        </select>
+      </div>
+      <div class="fg full"><label>Tipo</label>
+        <select id="ev-type">
+          <option value="reunion">Reunião</option>
+          <option value="followup">Follow-up</option>
+          <option value="apresentacao">Apresentação</option>
+          <option value="ligacao">Ligação</option>
+          <option value="outro">Outro</option>
+        </select>
+      </div>
+      <div class="fg full"><label>Notas</label><textarea id="ev-notes" placeholder="Detalhes do evento..."></textarea></div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn-cancel" onclick="closeEventModal()">Cancelar</button>
+    <button class="btn-save" onclick="saveEvent()"><i class="ti ti-check"></i> Salvar evento</button>
+  </div>
+</div>
 
 <!-- STATUS SHEET -->
 <div class="sheet-overlay" id="status-overlay" onclick="closeStatusSheet()"></div>
@@ -749,6 +1340,8 @@ function navigate(page) {
   if (page === 'ranking')   renderRanking();
   if (page === 'reports')   renderReports();
   if (page === 'profile')   renderProfile();
+  if (page === 'pipeline')  renderKanban();
+  if (page === 'agenda')    renderAgenda();
 
   // show/hide FAB
   document.querySelector('.fab').classList.toggle('hidden', page !== 'home');
@@ -1485,6 +2078,301 @@ function init() {
 }
 
 init();
+
+
+
+/* ════════════════════════════════════════════════════════
+   PIPELINE / KANBAN
+════════════════════════════════════════════════════════ */
+const COL_COLORS = {
+  'Lead':'#378ADD','Estudo':'#EF9F27','Apresentação':'#7F77DD',
+  'Negociação':'#D4537E','Ganho':'#1D9E75','Perdido':'#E24B4A'
+};
+const DEFAULT_COLS = ['Lead','Estudo','Apresentação','Negociação','Ganho','Perdido'];
+
+let kanbanCols  = JSON.parse(localStorage.getItem('lm_kcols'))  || DEFAULT_COLS.map((t,i)=>({id:'col'+i,title:t,color:COL_COLORS[t]||'#888780'}));
+let kanbanCards = JSON.parse(localStorage.getItem('lm_cards'))  || [];
+let kNextId     = Math.max(0,...kanbanCards.map(c=>parseInt(c.id.replace('kc',''))||0))+1;
+let dragCardId  = null;
+let openCardId  = null;
+
+function persistKanban(){
+  localStorage.setItem('lm_kcols',  JSON.stringify(kanbanCols));
+  localStorage.setItem('lm_cards',  JSON.stringify(kanbanCards));
+}
+
+function renderKanban(){
+  const board = document.getElementById('kanban-board');
+  if(!board) return;
+  board.innerHTML = '';
+
+  kanbanCols.forEach(col => {
+    const cards = kanbanCards.filter(c => c.colId === col.id);
+    const colEl = document.createElement('div');
+    colEl.className = 'kanban-col';
+    colEl.dataset.colId = col.id;
+    colEl.addEventListener('dragover', e => { e.preventDefault(); colEl.classList.add('drag-over'); });
+    colEl.addEventListener('dragleave', () => colEl.classList.remove('drag-over'));
+    colEl.addEventListener('drop', e => { e.preventDefault(); colEl.classList.remove('drag-over'); dropCard(col.id); });
+
+    colEl.innerHTML = `
+      <div class="col-color-bar" style="background:${col.color}"></div>
+      <div class="col-header">
+        <div class="col-title-wrap">
+          <span class="col-title">${escHtml(col.title)}</span>
+          <span class="col-count">${cards.length}</span>
+        </div>
+        <button class="col-del-btn" onclick="deleteCol('${col.id}')" title="Excluir coluna"><i class="ti ti-trash"></i></button>
+      </div>
+      <div class="col-cards" id="cards-${col.id}">
+        ${cards.map(c => buildKCard(c, col.color)).join('')}
+      </div>
+      <button class="col-add-btn" onclick="quickAddCard('${col.id}')"><i class="ti ti-plus"></i> Adicionar</button>
+    `;
+    board.appendChild(colEl);
+  });
+
+  // Add column button
+  const addCol = document.createElement('div');
+  addCol.className = 'add-col-card';
+  addCol.innerHTML = '<i class="ti ti-plus"></i> Nova coluna';
+  addCol.onclick = () => {
+    const title = prompt('Nome da nova coluna:');
+    if(!title) return;
+    const color = '#'+Math.floor(Math.random()*0xAAAAAA+0x555555).toString(16);
+    kanbanCols.push({id:'col'+Date.now(), title:title.trim(), color});
+    persistKanban(); renderKanban();
+  };
+  board.appendChild(addCol);
+}
+
+function buildKCard(c, color){
+  return `<div class="k-card" id="kcard-${c.id}" draggable="true"
+    ondragstart="startDrag('${c.id}')"
+    ondragend="endDrag()"
+    onclick="openCardPanel('${c.id}')">
+    <div class="k-card-name">${escHtml(c.nome)}</div>
+    <div class="k-card-product">${escHtml(c.produto||'—')}</div>
+    <div class="k-card-footer">
+      <span class="k-card-value">${escHtml(c.valor||'—')}</span>
+      <div class="k-card-dot" style="background:${color}"></div>
+    </div>
+  </div>`;
+}
+
+function startDrag(id){ dragCardId=id; setTimeout(()=>{const el=document.getElementById('kcard-'+id);if(el)el.classList.add('dragging');},0); }
+function endDrag(){ if(dragCardId){const el=document.getElementById('kcard-'+dragCardId);if(el)el.classList.remove('dragging');} dragCardId=null; }
+function dropCard(colId){ if(!dragCardId)return; const c=kanbanCards.find(x=>x.id===dragCardId); if(c){c.colId=colId;persistKanban();renderKanban();} dragCardId=null; }
+
+function deleteCol(colId){
+  if(!confirm('Excluir esta coluna? Os cards serão movidos para a primeira coluna.')) return;
+  const first = kanbanCols.find(c=>c.id!==colId);
+  if(first) kanbanCards.filter(c=>c.colId===colId).forEach(c=>c.colId=first.id);
+  kanbanCols = kanbanCols.filter(c=>c.id!==colId);
+  persistKanban(); renderKanban();
+}
+
+function quickAddCard(colId){
+  document.getElementById('es-coluna').value = colId;
+  openEstudoModal();
+}
+
+/* ESTUDO MODAL */
+function openEstudoModal(){
+  const sel = document.getElementById('es-coluna');
+  sel.innerHTML = kanbanCols.map(c=>`<option value="${c.id}">${escHtml(c.title)}</option>`).join('');
+  ['es-nome','es-produto','es-valor','es-obs'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+  document.getElementById('estudo-overlay').classList.add('open');
+  document.getElementById('estudo-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('es-nome').focus(),100);
+}
+function closeEstudoModal(){
+  document.getElementById('estudo-overlay').classList.remove('open');
+  document.getElementById('estudo-modal').classList.remove('open');
+  document.getElementById('es-rec-dropdown').style.display='none';
+}
+function searchEstudoRec(q){
+  const dd = document.getElementById('es-rec-dropdown');
+  const val = (q||'').trim().toLowerCase();
+  const results = contacts.filter(c=>!val||c.nome.toLowerCase().includes(val)||(c.prof||'').toLowerCase().includes(val)).slice(0,8);
+  if(!results.length){ dd.innerHTML=`<div class="rec-empty">Nenhum encontrado — será criado como novo</div>`; dd.style.display='block'; return; }
+  dd.innerHTML = results.map(c=>`<div class="rec-option" onmousedown="selectEstudoRec('${escHtml(c.nome).replace(/'/g,"\\'")}')">
+    ${highlight(c.nome,val)} ${c.prof?`<span style="font-size:11px;color:var(--gray)"> — ${escHtml(c.prof)}</span>`:''}
+  </div>`).join('');
+  dd.style.display='block';
+}
+function selectEstudoRec(nome){ document.getElementById('es-nome').value=nome; document.getElementById('es-rec-dropdown').style.display='none'; }
+document.addEventListener('click',e=>{ const dd=document.getElementById('es-rec-dropdown'); const inp=document.getElementById('es-nome'); if(dd&&inp&&!dd.contains(e.target)&&e.target!==inp) dd.style.display='none'; });
+
+function saveEstudo(){
+  const nome = (document.getElementById('es-nome').value||'').trim();
+  if(!nome){alert('Informe o nome do cliente.');return;}
+  const card = {
+    id:'kc'+kNextId++,
+    nome, produto:(document.getElementById('es-produto').value||'').trim(),
+    valor:(document.getElementById('es-valor').value||'').trim(),
+    colId:document.getElementById('es-coluna').value,
+    obs:(document.getElementById('es-obs').value||'').trim(),
+    followups:[], createdAt:new Date().toISOString()
+  };
+  kanbanCards.push(card);
+  persistKanban(); closeEstudoModal(); renderKanban();
+}
+
+/* CARD DETAIL PANEL */
+function openCardPanel(id){
+  openCardId=id;
+  const c=kanbanCards.find(x=>x.id===id); if(!c)return;
+  const col=kanbanCols.find(x=>x.id===c.colId);
+  document.getElementById('cdp-name').textContent=c.nome;
+  document.getElementById('cdp-sub').textContent=`${c.produto||'—'} · ${c.valor||'—'}`;
+  document.getElementById('cdp-produto').textContent=c.produto||'—';
+  document.getElementById('cdp-valor').textContent=c.valor||'—';
+  document.getElementById('cdp-coluna').textContent=col?col.title:'—';
+  document.getElementById('cdp-obs').value=c.obs||'';
+  renderFuTimeline(c);
+  document.getElementById('fu-input-wrap').style.display='none';
+  document.getElementById('card-panel-overlay').classList.add('open');
+  document.getElementById('card-detail-panel').classList.add('open');
+}
+function closeCardPanel(){ document.getElementById('card-panel-overlay').classList.remove('open'); document.getElementById('card-detail-panel').classList.remove('open'); openCardId=null; }
+function saveCardObs(){ const c=kanbanCards.find(x=>x.id===openCardId); if(!c)return; c.obs=document.getElementById('cdp-obs').value; persistKanban(); }
+function moveCardLeft(){
+  const c=kanbanCards.find(x=>x.id===openCardId); if(!c)return;
+  const idx=kanbanCols.findIndex(x=>x.id===c.colId); if(idx>0){c.colId=kanbanCols[idx-1].id; persistKanban(); renderKanban(); openCardPanel(openCardId);}
+}
+function moveCardRight(){
+  const c=kanbanCards.find(x=>x.id===openCardId); if(!c)return;
+  const idx=kanbanCols.findIndex(x=>x.id===c.colId); if(idx<kanbanCols.length-1){c.colId=kanbanCols[idx+1].id; persistKanban(); renderKanban(); openCardPanel(openCardId);}
+}
+function deleteCard(){
+  if(!confirm('Excluir este card?'))return;
+  kanbanCards=kanbanCards.filter(x=>x.id!==openCardId);
+  persistKanban(); renderKanban(); closeCardPanel();
+}
+
+/* FOLLOW-UP */
+function showFuInput(){ const w=document.getElementById('fu-input-wrap'); w.style.display=w.style.display==='none'?'flex':'none'; if(w.style.display==='flex') document.getElementById('fu-new-text').focus(); }
+function saveFu(){
+  const txt=(document.getElementById('fu-new-text').value||'').trim();
+  const dt=document.getElementById('fu-new-date').value;
+  if(!txt)return;
+  const c=kanbanCards.find(x=>x.id===openCardId); if(!c)return;
+  c.followups.unshift({dt:dt?new Date(dt).toISOString():new Date().toISOString(), txt});
+  persistKanban();
+  document.getElementById('fu-new-text').value='';
+  document.getElementById('fu-new-date').value='';
+  document.getElementById('fu-input-wrap').style.display='none';
+  renderFuTimeline(c);
+}
+function renderFuTimeline(c){
+  const el=document.getElementById('fu-timeline'); if(!el)return;
+  if(!c.followups||!c.followups.length){el.innerHTML='<div style="font-size:12px;color:var(--gray);padding:8px 0">Nenhum follow-up ainda.</div>';return;}
+  el.innerHTML=c.followups.map((f,i,arr)=>`<div class="fu-tl-item">
+    <div class="fu-tl-dot-col"><div class="fu-tl-dot${i>0?' old':''}"></div>${i<arr.length-1?'<div class="fu-tl-line"></div>':''}</div>
+    <div><div class="fu-tl-date">${fmtDate(f.dt)}</div><div class="fu-tl-text">${escHtml(f.txt)}</div></div>
+  </div>`).join('');
+}
+
+/* ════════════════════════════════════════════════════════
+   AGENDA
+════════════════════════════════════════════════════════ */
+let agendaEvents  = JSON.parse(localStorage.getItem('lm_events'))||[];
+let agEvNextId    = Math.max(0,...agendaEvents.map(e=>parseInt(e.id.replace('ev',''))||0))+1;
+let agendaWeekStart = getWeekStart(new Date());
+
+function getWeekStart(d){
+  const date=new Date(d);
+  const day=date.getDay();
+  const diff=date.getDate()-(day===0?6:day-1);
+  date.setDate(diff);
+  date.setHours(0,0,0,0);
+  return date;
+}
+function agendaNav(dir){ agendaWeekStart=new Date(agendaWeekStart); agendaWeekStart.setDate(agendaWeekStart.getDate()+dir*7); renderAgenda(); }
+function agendaGoToday(){ agendaWeekStart=getWeekStart(new Date()); renderAgenda(); }
+
+const HOURS = [8,9,10,11,12,13,14,15,16,17,18,19];
+const DAYS_PT = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+
+function renderAgenda(){
+  const headerEl=document.getElementById('ag-day-headers');
+  const timesEl=document.getElementById('ag-times');
+  const colsEl=document.getElementById('ag-cols');
+  const labelEl=document.getElementById('ag-week-label');
+  if(!headerEl)return;
+
+  const today=new Date(); today.setHours(0,0,0,0);
+  const days=Array.from({length:7},(_,i)=>{ const d=new Date(agendaWeekStart); d.setDate(d.getDate()+i); return d; });
+
+  // Week label
+  const fmt=d=>d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
+  labelEl.textContent=`${fmt(days[0])} — ${fmt(days[6])} ${days[0].getFullYear()}`;
+
+  // Day headers
+  headerEl.innerHTML = `<div class="ag-corner"></div>` +
+    days.map((d,i)=>{
+      const isToday=d.getTime()===today.getTime();
+      const isWk=i>=5;
+      return `<div class="ag-day-col-header">
+        <div class="ag-day-name">${DAYS_PT[i]}</div>
+        <div class="ag-day-num${isToday?' today-num':isWk?' weekend':''}">${d.getDate()}</div>
+      </div>`;
+    }).join('');
+
+  // Times
+  timesEl.innerHTML = HOURS.map(h=>`<div class="ag-time-slot">${h}h</div>`).join('');
+
+  // Cols
+  colsEl.innerHTML = days.map((d,di)=>{
+    const isWk=di>=5;
+    const isToday=d.getTime()===today.getTime();
+    const dayStr=d.toISOString().slice(0,10);
+    const dayEvents=agendaEvents.filter(e=>e.date===dayStr);
+
+    const cells=HOURS.map(h=>{
+      const evs=dayEvents.filter(e=>{const eh=parseInt(e.time.split(':')[0]);return eh===h;});
+      const evsHtml=evs.map(e=>{
+        const topPct=((parseInt(e.time.split(':')[1])||0)/60)*100;
+        const heightPx=Math.round((e.duration/60)*56);
+        return `<div class="ag-event ag-ev-${e.type}" style="top:${topPct}%;height:${heightPx}px" title="${escHtml(e.title)}">
+          <div class="ag-ev-title">${escHtml(e.title)}</div>
+        </div>`;
+      }).join('');
+      return `<div class="ag-hour-cell">${evsHtml}</div>`;
+    }).join('');
+
+    return `<div class="ag-col${isWk?' weekend-col':''}${isToday?' today-col':''}">${cells}</div>`;
+  }).join('');
+}
+
+/* EVENT MODAL */
+function openEventModal(){
+  const today=new Date().toISOString().slice(0,10);
+  const nowH=new Date().getHours();
+  document.getElementById('ev-title').value='';
+  document.getElementById('ev-date').value=today;
+  document.getElementById('ev-time').value=`${String(nowH).padStart(2,'0')}:00`;
+  document.getElementById('ev-notes').value='';
+  document.getElementById('event-overlay').classList.add('open');
+  document.getElementById('event-modal').classList.add('open');
+  setTimeout(()=>document.getElementById('ev-title').focus(),100);
+}
+function closeEventModal(){ document.getElementById('event-overlay').classList.remove('open'); document.getElementById('event-modal').classList.remove('open'); }
+function saveEvent(){
+  const title=(document.getElementById('ev-title').value||'').trim();
+  if(!title){alert('Informe o título do evento.');return;}
+  agendaEvents.push({
+    id:'ev'+agEvNextId++,
+    title, date:document.getElementById('ev-date').value,
+    time:document.getElementById('ev-time').value,
+    duration:parseInt(document.getElementById('ev-dur').value)||60,
+    type:document.getElementById('ev-type').value,
+    notes:document.getElementById('ev-notes').value.trim()
+  });
+  localStorage.setItem('lm_events',JSON.stringify(agendaEvents));
+  closeEventModal(); renderAgenda();
+}
 
 
 /* ── LOGIN ── */
