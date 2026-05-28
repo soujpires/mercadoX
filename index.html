@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
+<title>Mercado X — Prudential</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- MOBILE DRAWER -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+<nav class="drawer" id="drawer">
+  <div class="drawer-profile">
+    <div class="drawer-av" id="mob-drawer-av"><i class="ti ti-user"></i></div>
+    <div>
+      <div class="drawer-name" id="mob-drawer-name">Ricardo Souza</div>
+      <div class="drawer-role" id="mob-drawer-role">Life Planner</div>
+      <div class="drawer-company">Prudential do Brasil</div>
+    </div>
+  </div>
+  <div class="drawer-nav">
+    <button class="drawer-item active" onclick="navigate('home')"   id="mnav-home"><i class="ti ti-users"></i> Mercado X</button>
+    <button class="drawer-item" onclick="navigate('dashboard')"     id="mnav-dashboard"><i class="ti ti-layout-dashboard"></i> Dashboard</button>
+    <button class="drawer-item" onclick="navigate('ranking')"       id="mnav-ranking"><i class="ti ti-trophy"></i> Ranking</button>
+    <button class="drawer-item" onclick="navigate('reports')"       id="mnav-reports"><i class="ti ti-file-spreadsheet"></i> Relatórios</button>
+    <button class="drawer-item" onclick="navigate('profile')"       id="mnav-profile"><i class="ti ti-user-circle"></i> Meu perfil</button>
+  </div>
+  <button class="drawer-close-btn" onclick="closeDrawer()"><i class="ti ti-x"></i> Fechar</button>
+</nav>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- SIDEBAR (desktop) -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-icon"><i class="ti ti-network" aria-hidden="true"></i></div>
+      <span class="sb-logo-text">Mercado X</span>
+    </div>
+    <nav class="sb-nav">
+      <button class="sb-item active" onclick="navigate('home')"      id="snav-home"><i class="ti ti-users"></i><span class="sb-label">Mercado X</span></button>
+      <button class="sb-item" onclick="navigate('dashboard')"        id="snav-dashboard"><i class="ti ti-layout-dashboard"></i><span class="sb-label">Dashboard</span></button>
+      <button class="sb-item" onclick="navigate('ranking')"          id="snav-ranking"><i class="ti ti-trophy"></i><span class="sb-label">Ranking</span></button>
+      <button class="sb-item" onclick="navigate('reports')"          id="snav-reports"><i class="ti ti-file-spreadsheet"></i><span class="sb-label">Relatórios</span></button>
+      <button class="sb-item" onclick="navigate('profile')"          id="snav-profile"><i class="ti ti-user-circle"></i><span class="sb-label">Meu perfil</span></button>
+    </nav>
+    <div class="sb-profile" onclick="navigate('profile')" style="cursor:pointer">
+      <div class="sb-av" id="sb-av"><i class="ti ti-user"></i></div>
+      <div class="sb-profile-info">
+        <div class="sb-profile-name" id="sb-name">Ricardo Souza</div>
+        <div class="sb-profile-role" id="sb-role">Life Planner</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- MOBILE TOPBAR -->
+    <header class="mobile-topbar">
+      <button class="tb-btn" onclick="toggleDrawer()" aria-label="Menu"><i class="ti ti-menu-2"></i></button>
+      <div class="tb-logo">Mercado X</div>
+      <div class="tb-avatar" onclick="navigate('profile')" id="mob-tb-av"><i class="ti ti-user"></i></div>
+    </header>
+
+    <!-- HOME -->
+    <section class="page active" id="page-home">
+      <div class="page-scroll">
+        <div class="hero">
+          <div class="hero-inner">
+            <div class="hero-greeting">Bem-vindo de volta</div>
+            <div class="hero-name" id="hero-name">Ricardo Souza</div>
+            <div class="hero-role" id="hero-role">Life Planner · Prudential do Brasil</div>
+            <div class="stats-row">
+              <div class="stat"><div class="stat-num" id="s-total">0</div><div class="stat-bar"></div><div class="stat-lbl">Contatos</div></div>
+              <div class="stat"><div class="stat-num" id="s-ativos">0</div><div class="stat-bar"></div><div class="stat-lbl">Ativos</div></div>
+              <div class="stat"><div class="stat-num" id="s-leads">0</div><div class="stat-bar"></div><div class="stat-lbl">Leads</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="search-bar" style="padding-top:14px">
+          <div class="search-inner">
+            <i class="ti ti-search"></i>
+            <input type="text" id="search-input" placeholder="Buscar por nome, profissão, cidade..." oninput="renderList()">
+            <button class="filter-toggle" id="filter-toggle" onclick="toggleFilter()" aria-label="Filtrar">
+              <i class="ti ti-adjustments-horizontal"></i>
+              <span class="filter-dot hidden" id="filter-dot"></span>
+            </button>
+          </div>
+          <div class="filter-panel hidden" id="filter-panel">
+            <div class="filter-label" style="margin-top:10px">Filtrar por status</div>
+            <div class="filter-chips" id="filter-chips"></div>
+          </div>
+        </div>
+        <div class="list-container">
+          <div class="list-header">
+            <span class="list-title">Seus contatos</span>
+            <span class="list-count" id="list-count">0 contatos</span>
+          </div>
+          <div id="contact-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DASHBOARD -->
+    <section class="page" id="page-dashboard">
+      <div class="page-scroll">
+        <div class="page-content">
+          <div class="page-title">Dashboard</div>
+          <div id="dash-grid"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RANKING -->
+    <section class="page" id="page-ranking">
+      <div class="page-scroll">
+        <div class="page-content">
+          <div class="page-title">Ranking de recomendantes</div>
+          <div id="ranking-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- REPORTS -->
+    <section class="page" id="page-reports">
+      <div class="page-scroll">
+        <div class="page-content">
+          <div class="page-title">Relatórios</div>
+          <div id="reports-grid"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROFILE -->
+    <section class="page" id="page-profile">
+      <div class="page-scroll">
+        <div class="page-content">
+          <div class="page-title">Meu perfil</div>
+          <div id="profile-content"></div>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /main -->
+</div><!-- /layout -->
+
+<!-- FAB -->
+<button class="fab" onclick="openModal()" aria-label="Novo contato"><i class="ti ti-plus"></i></button>
+
+<!-- STATUS SHEET -->
+<div class="sheet-overlay" id="status-overlay" onclick="closeStatusSheet()"></div>
+<div class="bottom-sheet" id="status-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="status-sheet-title">Alterar status</div>
+  <div class="sheet-options" id="status-options"></div>
+  <button class="sheet-cancel" onclick="closeStatusSheet()">Cancelar</button>
+</div>
+
+<!-- CONTACT MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal()"></div>
+<div class="modal" id="contact-modal">
+  <div class="modal-header">
+    <h2 class="modal-title" id="modal-title">Novo contato</h2>
+    <button class="modal-close" onclick="closeModal()"><i class="ti ti-x"></i></button>
+  </div>
+  <div class="modal-body">
+    <div class="form-section-label">Identificação</div>
+    <div class="form-grid">
+      <div class="fg full"><label>Nome completo *</label><input type="text" id="f-nome" placeholder="Ex: João Silva" autocomplete="off"></div>
+      <div class="fg full"><label>Gênero</label>
+        <div class="gender-row">
+          <button class="gender-opt active" id="g-m" onclick="selGender('m')"><i class="ti ti-user"></i> Masculino</button>
+          <button class="gender-opt" id="g-f" onclick="selGender('f')"><i class="ti ti-user"></i> Feminino</button>
+        </div>
+      </div>
+    </div>
+    <div class="form-section-label">Origem da indicação</div>
+    <div class="form-grid">
+      <div class="fg full rec-wrap">
+        <label>Recomendante</label>
+        <input type="text" id="f-rec" placeholder="Digite para buscar..." autocomplete="off" oninput="searchRec(this.value)" onfocus="searchRec(this.value)">
+        <div class="rec-dropdown" id="rec-dropdown"></div>
+      </div>
+      <div class="fg full"><label>Relação / Referência</label><input type="text" id="f-ref" placeholder="amigo, colega, familiar..."></div>
+    </div>
+    <div class="form-section-label">Contato</div>
+    <div class="form-grid">
+      <div class="fg"><label>Telefone</label><input type="tel" id="f-tel" placeholder="(00) 00000-0000"></div>
+      <div class="fg"><label>Profissão</label><input type="text" id="f-prof" placeholder="Médico, Advogado..."></div>
+      <div class="fg full"><label>Empresa / Cargo</label><input type="text" id="f-empresa" placeholder="Hospital X — Diretor Clínico"></div>
+      <div class="fg"><label>Cidade</label><input type="text" id="f-cidade" placeholder="Goiânia"></div>
+      <div class="fg"><label>Estado</label><input type="text" id="f-es" placeholder="GO" maxlength="2"></div>
+      <div class="fg full"><label>Endereço</label><input type="text" id="f-end" placeholder="Rua, número, bairro"></div>
+    </div>
+    <div class="form-section-label">Informações adicionais</div>
+    <div class="form-grid">
+      <div class="fg full"><label>Filho(s)</label><input type="text" id="f-filhos" placeholder="Ex: Lucas, Pedro, Maria"><span class="fg-hint">Separe os nomes por vírgula</span></div>
+      <div class="fg"><label>Semana</label><input type="number" id="f-semana" placeholder="1" min="1"></div>
+      <div class="fg"><label>Status</label><select id="f-status"></select></div>
+      <div class="fg full"><label>Observações</label><textarea id="f-obs" placeholder="Notas sobre este contato..."></textarea></div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+    <button class="btn-save" onclick="saveContact()"><i class="ti ti-check"></i> Salvar contato</button>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
