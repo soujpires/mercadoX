@@ -40,10 +40,13 @@ html,body{height:100%;font-family:var(--font);background:var(--offwhite);color:v
 
 .sb-logo{
   height:56px;display:flex;align-items:center;
-  padding:0 10px;flex-shrink:0;
+  padding:0 14px;flex-shrink:0;
   border-bottom:0.5px solid rgba(255,255,255,0.07);
   overflow:hidden;white-space:nowrap;
 }
+.sb-logo-full{display:none!important}
+.sidebar:hover .sb-logo-full{display:block!important}
+.sidebar:hover .sb-logo{justify-content:flex-start;padding:0 12px}
 .sb-logo-icon{width:26px;height:26px;border-radius:7px;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;color:var(--gold);font-size:14px;flex-shrink:0}
 .sb-logo-text{color:var(--gold);font-size:13px;font-weight:500;opacity:0;transition:opacity 0.15s;white-space:nowrap}
 
@@ -452,15 +455,19 @@ html,body{height:100%;font-family:var(--font);background:var(--offwhite);color:v
 
   <!-- SIDEBAR (desktop) -->
   <aside class="sidebar" id="sidebar">
-    <div class="sb-logo" style="padding:0 10px;gap:0">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 32" fill="none" style="width:120px;height:32px;flex-shrink:0;min-width:120px">
+    <div class="sb-logo" onclick="navigate('home')" style="padding:0;gap:0;cursor:pointer;justify-content:center">
+      <!-- icon only — always visible, centered when collapsed -->
+      <svg class="sb-logo-icon-only" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" style="width:32px;height:32px;flex-shrink:0;min-width:32px">
         <circle cx="8" cy="16" r="4.5" fill="white" opacity="0.95"/>
         <circle cx="22" cy="7" r="3.5" fill="white" opacity="0.8"/>
         <circle cx="22" cy="25" r="3.5" fill="white" opacity="0.8"/>
         <line x1="12" y1="13.5" x2="19" y2="9" stroke="white" stroke-width="1.3" opacity="0.55"/>
         <line x1="12" y1="18.5" x2="19" y2="23" stroke="white" stroke-width="1.3" opacity="0.55"/>
         <line x1="25.5" y1="9" x2="25.5" y2="23" stroke="white" stroke-width="1" stroke-dasharray="2 2" opacity="0.35"/>
-        <text x="32" y="21" font-family="DM Sans,sans-serif" font-size="13" font-weight="500" fill="white" letter-spacing="0.3">Lead Map</text>
+      </svg>
+      <!-- full text — only visible when expanded -->
+      <svg class="sb-logo-full" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 32" fill="none" style="width:120px;height:32px;flex-shrink:0;min-width:120px;display:none;margin-left:4px">
+        <text x="0" y="21" font-family="DM Sans,sans-serif" font-size="13" font-weight="500" fill="white" letter-spacing="0.3">Lead Map</text>
       </svg>
     </div>
     <nav class="sb-nav">
