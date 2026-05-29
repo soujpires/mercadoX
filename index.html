@@ -911,8 +911,14 @@ function saveEvent(){
     <button class="drawer-item" onclick="navigate('agenda')"        id="mnav-agenda"><i class="ti ti-calendar-week"></i> Agenda</button>
     <button class="drawer-item" onclick="navigate('profile')"       id="mnav-profile"><i class="ti ti-user-circle"></i> Meu perfil</button>
   </div>
-  <button class="drawer-close-btn" onclick="closeDrawer()"><i class="ti ti-x"></i> Fechar</button>
-  <button class="drawer-close-btn" onclick="doLogout()" style="color:rgba(226,75,74,0.7);border-top:none;padding-top:0"><i class="ti ti-logout"></i> Sair da conta</button>
+  <div style="margin-top:auto;padding:12px 16px;border-top:0.5px solid rgba(255,255,255,0.08);display:flex;flex-direction:column;gap:6px">
+    <button onclick="closeDrawer()" style="display:flex;align-items:center;gap:10px;padding:10px 4px;color:rgba(255,255,255,0.35);font-size:12px;font-family:var(--font);background:none;border:none;cursor:pointer;width:100%;text-align:left">
+      <i class="ti ti-x" style="font-size:15px"></i> Fechar menu
+    </button>
+    <button onclick="doLogout()" style="display:flex;align-items:center;gap:10px;padding:10px 12px;color:#f09595;font-size:13px;font-family:var(--font);background:rgba(226,75,74,0.1);border:0.5px solid rgba(226,75,74,0.25);border-radius:8px;cursor:pointer;width:100%;text-align:left;font-weight:500">
+      <i class="ti ti-logout" style="font-size:16px;color:#f09595"></i> Sair da conta
+    </button>
+  </div>
 </nav>
 
 <!-- LAYOUT -->
@@ -944,6 +950,10 @@ function saveEvent(){
       <button class="sb-item" onclick="navigate('agenda')"          id="snav-agenda"><i class="ti ti-calendar-week"></i><span class="sb-label">Agenda</span></button>
       <button class="sb-item" onclick="navigate('profile')"          id="snav-profile"><i class="ti ti-user-circle"></i><span class="sb-label">Meu perfil</span></button>
     </nav>
+    <button onclick="doLogout()" style="display:flex;align-items:center;gap:10px;height:40px;padding:0 14px;color:rgba(226,75,74,0.7);font-size:12px;font-family:var(--font);background:none;border:none;border-top:0.5px solid rgba(255,255,255,0.07);cursor:pointer;width:100%;white-space:nowrap;overflow:hidden">
+      <i class="ti ti-logout" style="font-size:17px;color:rgba(226,75,74,0.8);flex-shrink:0;width:24px;text-align:center"></i>
+      <span class="sb-label">Sair da conta</span>
+    </button>
     <div class="sb-profile" onclick="navigate('profile')" style="cursor:pointer">
       <div class="sb-av" id="sb-av"><i class="ti ti-user"></i></div>
       <div class="sb-profile-info">
@@ -2466,7 +2476,11 @@ function showApp() {
 
 function showLoginScreen() {
   const ls = document.getElementById('login-screen');
-  if (ls) { ls.style.display = 'flex'; ls.style.opacity = '1'; }
+  if (ls) {
+    ls.style.display = 'flex';
+    ls.style.opacity = '1';
+    ls.style.zIndex  = '999';
+  }
   showLoginBox();
 }
 
@@ -2517,15 +2531,23 @@ async function doLogin() {
 
 /* ── LOGOUT ── */
 async function doLogout() {
-  await supa.auth.signOut();
+  try {
+    await supa.auth.signOut();
+  } catch(e) {
+    console.error('signOut error:', e);
+  }
   currentUser = null;
   currentSession = null;
   contacts = [];
-  // Clear local storage
-  localStorage.removeItem('mx_contacts');
-  localStorage.removeItem('mx_profile');
-  // Show login screen
-  showLoginScreen();
+  // Clear all local data
+  ['mx_contacts','mx_profile','lm_kcols','lm_cards','lm_events'].forEach(k => localStorage.removeItem(k));
+  // Force show login
+  const ls = document.getElementById('login-screen');
+  if (ls) {
+    ls.style.display = 'flex';
+    ls.style.opacity = '1';
+  }
+  showLoginBox();
 }
 
 /* ── RESET PASSWORD ── */
