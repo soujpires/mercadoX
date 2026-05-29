@@ -696,20 +696,6 @@ function saveEvent(){
 
 
 
-/* ── LOGIN IMPROVEMENTS ── */
-.login-screen{position:fixed;inset:0;background:var(--navy);display:flex;align-items:center;justify-content:center;z-index:999;padding:20px;transition:opacity 0.35s}
-.login-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:rgba(255,255,255,0.5);font-size:13px}
-.spinner{width:36px;height:36px;border:3px solid rgba(201,168,76,0.2);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-.login-forgot{text-align:right;margin-top:-8px;margin-bottom:14px}
-.login-forgot a{font-size:11px;color:rgba(255,255,255,0.4);cursor:pointer;text-decoration:none}
-.login-forgot a:hover{color:var(--gold)}
-.login-success{background:rgba(29,158,117,0.15);border:0.5px solid rgba(29,158,117,0.4);border-radius:8px;padding:9px 12px;font-size:12px;color:#9FE1CB;margin-bottom:14px;display:none}
-.login-success.show{display:block}
-/* Reset password screen */
-.reset-box{display:none;width:100%;max-width:380px}
-.reset-box.show{display:block}
-.login-box.hide{display:none}
 
 /* ── LOGIN ── */
 .login-screen{position:fixed;inset:0;background:var(--navy);display:flex;align-items:center;justify-content:center;z-index:999;padding:20px}
@@ -864,6 +850,22 @@ function saveEvent(){
   .agenda-grid-wrap{margin:0 16px 16px}
   .ag-week-label{min-width:auto}
 }
+
+/* ── LOGIN IMPROVEMENTS ── */
+.login-screen{position:fixed;inset:0;background:var(--navy);display:flex;align-items:center;justify-content:center;z-index:999;padding:20px;transition:opacity 0.35s}
+.login-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:rgba(255,255,255,0.5);font-size:13px}
+.spinner{width:36px;height:36px;border:3px solid rgba(201,168,76,0.2);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.login-forgot{text-align:right;margin-top:-8px;margin-bottom:14px}
+.login-forgot a{font-size:11px;color:rgba(255,255,255,0.4);cursor:pointer;text-decoration:none}
+.login-forgot a:hover{color:var(--gold)}
+.login-success{background:rgba(29,158,117,0.15);border:0.5px solid rgba(29,158,117,0.4);border-radius:8px;padding:9px 12px;font-size:12px;color:#9FE1CB;margin-bottom:14px;display:none}
+.login-success.show{display:block}
+/* Reset password screen */
+.reset-box{display:none;width:100%;max-width:380px}
+.reset-box.show{display:block}
+.login-box.hide{display:none}
+
 
 </style>
 </head>
@@ -2138,9 +2140,6 @@ function init() {
   });
 }
 
-init();
-
-
 
 /* ════════════════════════════════════════════════════════
    PIPELINE / KANBAN
@@ -2437,20 +2436,6 @@ function saveEvent(){
 
 
 
-/* ── LOGIN IMPROVEMENTS ── */
-.login-screen{position:fixed;inset:0;background:var(--navy);display:flex;align-items:center;justify-content:center;z-index:999;padding:20px;transition:opacity 0.35s}
-.login-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:rgba(255,255,255,0.5);font-size:13px}
-.spinner{width:36px;height:36px;border:3px solid rgba(201,168,76,0.2);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite}
-@keyframes spin{to{transform:rotate(360deg)}}
-.login-forgot{text-align:right;margin-top:-8px;margin-bottom:14px}
-.login-forgot a{font-size:11px;color:rgba(255,255,255,0.4);cursor:pointer;text-decoration:none}
-.login-forgot a:hover{color:var(--gold)}
-.login-success{background:rgba(29,158,117,0.15);border:0.5px solid rgba(29,158,117,0.4);border-radius:8px;padding:9px 12px;font-size:12px;color:#9FE1CB;margin-bottom:14px;display:none}
-.login-success.show{display:block}
-/* Reset password screen */
-.reset-box{display:none;width:100%;max-width:380px}
-.reset-box.show{display:block}
-.login-box.hide{display:none}
 
 
 /* ════════════════════════════════════════════════════════
