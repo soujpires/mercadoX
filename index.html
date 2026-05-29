@@ -482,12 +482,18 @@ function buildKCard(c, color){
 
 function startDrag(id){ dragCardId=id; setTimeout(()=>{const el=document.getElementById('kcard-'+id);if(el)el.classList.add('dragging');},0); }
 function endDrag(){ if(dragCardId){const el=document.getElementById('kcard-'+dragCardId);if(el)el.classList.remove('dragging');} dragCardId=null; }
-function dropCard(colId){ if(!dragCardId)return; const c=kanbanCards.find(x=>x.id===dragCardId); if(c){c.colId=colId;persistKanban();renderKanban();} dragCardId=null; }
+function dropCard(colId){ if(!dragCardId)return; const c=kanbanCards.find(x=>x.id===dragCardId); if(c){c.colId=colId;persistKanban();renderKanban(); if(currentUser) upsertKanbanCardDB(c);} dragCardId=null; }
 
 function deleteCol(colId){
   if(!confirm('Excluir esta coluna? Os cards serão movidos para a primeira coluna.')) return;
   const first = kanbanCols.find(c=>c.id!==colId);
-  if(first) kanbanCards.filter(c=>c.colId===colId).forEach(c=>c.colId=first.id);
+  if(first) {
+    kanbanCards.filter(c=>c.colId===colId).forEach(c=>{
+      c.colId=first.id;
+      if(currentUser) upsertKanbanCardDB(c);
+    });
+  }
+  if(currentUser) deleteKanbanColDB(colId);
   kanbanCols = kanbanCols.filter(c=>c.id!==colId);
   persistKanban(); renderKanban();
 }
@@ -537,6 +543,11 @@ function saveEstudo(){
   };
   kanbanCards.push(card);
   persistKanban(); closeEstudoModal(); renderKanban();
+  if (currentUser) {
+    upsertKanbanCardDB(card).then(newId => {
+      if (newId) { card.id = newId; persistKanban(); }
+    });
+  }
 }
 
 /* CARD DETAIL PANEL */
@@ -556,18 +567,20 @@ function openCardPanel(id){
   document.getElementById('card-detail-panel').classList.add('open');
 }
 function closeCardPanel(){ document.getElementById('card-panel-overlay').classList.remove('open'); document.getElementById('card-detail-panel').classList.remove('open'); openCardId=null; }
-function saveCardObs(){ const c=kanbanCards.find(x=>x.id===openCardId); if(!c)return; c.obs=document.getElementById('cdp-obs').value; persistKanban(); }
+function saveCardObs(){ const c=kanbanCards.find(x=>x.id===openCardId); if(!c)return; c.obs=document.getElementById('cdp-obs').value; persistKanban(); if(currentUser) upsertKanbanCardDB(c); }
 function moveCardLeft(){
   const c=kanbanCards.find(x=>x.id===openCardId); if(!c)return;
-  const idx=kanbanCols.findIndex(x=>x.id===c.colId); if(idx>0){c.colId=kanbanCols[idx-1].id; persistKanban(); renderKanban(); openCardPanel(openCardId);}
+  const idx=kanbanCols.findIndex(x=>x.id===c.colId); if(idx>0){c.colId=kanbanCols[idx-1].id; persistKanban(); if(currentUser) upsertKanbanCardDB(c); renderKanban(); openCardPanel(openCardId);}
 }
 function moveCardRight(){
   const c=kanbanCards.find(x=>x.id===openCardId); if(!c)return;
-  const idx=kanbanCols.findIndex(x=>x.id===c.colId); if(idx<kanbanCols.length-1){c.colId=kanbanCols[idx+1].id; persistKanban(); renderKanban(); openCardPanel(openCardId);}
+  const idx=kanbanCols.findIndex(x=>x.id===c.colId); if(idx<kanbanCols.length-1){c.colId=kanbanCols[idx+1].id; persistKanban(); if(currentUser) upsertKanbanCardDB(c); renderKanban(); openCardPanel(openCardId);}
 }
 function deleteCard(){
   if(!confirm('Excluir este card?'))return;
-  kanbanCards=kanbanCards.filter(x=>x.id!==openCardId);
+  const id = openCardId;
+  if (currentUser) deleteKanbanCardDB(id);
+  kanbanCards=kanbanCards.filter(x=>x.id!==id);
   persistKanban(); renderKanban(); closeCardPanel();
 }
 
@@ -580,6 +593,7 @@ function saveFu(){
   const c=kanbanCards.find(x=>x.id===openCardId); if(!c)return;
   c.followups.unshift({dt:dt?new Date(dt).toISOString():new Date().toISOString(), txt});
   persistKanban();
+  if(currentUser) upsertKanbanCardDB(c);
   document.getElementById('fu-new-text').value='';
   document.getElementById('fu-new-date').value='';
   document.getElementById('fu-input-wrap').style.display='none';
@@ -682,16 +696,22 @@ function closeEventModal(){ document.getElementById('event-overlay').classList.r
 function saveEvent(){
   const title=(document.getElementById('ev-title').value||'').trim();
   if(!title){alert('Informe o título do evento.');return;}
-  agendaEvents.push({
+  const newEv = {
     id:'ev'+agEvNextId++,
     title, date:document.getElementById('ev-date').value,
     time:document.getElementById('ev-time').value,
     duration:parseInt(document.getElementById('ev-dur').value)||60,
     type:document.getElementById('ev-type').value,
     notes:document.getElementById('ev-notes').value.trim()
-  });
+  };
+  agendaEvents.push(newEv);
   localStorage.setItem('lm_events',JSON.stringify(agendaEvents));
   closeEventModal(); renderAgenda();
+  if(currentUser) {
+    saveEventDB(newEv).then(newId => {
+      if(newId) { newEv.id = newId; localStorage.setItem('lm_events',JSON.stringify(agendaEvents)); }
+    });
+  }
 }
 
 
@@ -1360,8 +1380,8 @@ function navigate(page) {
   if (page === 'ranking')   renderRanking();
   if (page === 'reports')   renderReports();
   if (page === 'profile')   renderProfile();
-  if (page === 'pipeline')  renderKanban();
-  if (page === 'agenda')    renderAgenda();
+  if (page === 'pipeline')  { if(currentUser) loadKanbanDB().then(renderKanban); else renderKanban(); }
+  if (page === 'agenda')    { if(currentUser) loadAgendaDB().then(renderAgenda); else renderAgenda(); }
 
   // show/hide FAB
   document.querySelector('.fab').classList.toggle('hidden', page !== 'home');
@@ -1561,6 +1581,7 @@ function saveNote(id) {
   if (!c) return;
   c.notas.push({ dt: new Date().toISOString(), txt });
   persist();
+  if (currentUser) updateContactNotesDB(c.id, c.notas);
   inp.value = '';
   const tl = document.getElementById(`ntl-${id}`);
   if (tl) tl.innerHTML = buildTimeline(c);
@@ -1696,12 +1717,14 @@ function saveContact() {
   closeModal();
   renderList();
   updateStats();
-  // sync to Supabase if logged in
+  // sync to Supabase
   if (currentUser) {
     const saved = editingId ? contacts.find(c=>c.id===editingId) : contacts[contacts.length-1];
-    if (saved) upsertContactDB(saved).then(newId => {
-      if (newId && !editingId) { saved.id = newId; persist(); }
-    });
+    if (saved) {
+      upsertContactDB(saved).then(newId => {
+        if (newId && !editingId) { saved.id = newId; persist(); }
+      });
+    }
   }
 }
 
@@ -2047,10 +2070,12 @@ function applyProfile() {
 }
 
 /* ─── INIT ───────────────────────────────────────────────────── */
-function init() {
+async function init() {
   applyProfile();
   if (currentUser) {
-    loadContactsDB().then(() => { renderList(); updateStats(); });
+    await loadContactsDB();
+    renderList();
+    updateStats();
   } else {
     renderList();
     updateStats();
@@ -2148,12 +2173,18 @@ function buildKCard(c, color){
 
 function startDrag(id){ dragCardId=id; setTimeout(()=>{const el=document.getElementById('kcard-'+id);if(el)el.classList.add('dragging');},0); }
 function endDrag(){ if(dragCardId){const el=document.getElementById('kcard-'+dragCardId);if(el)el.classList.remove('dragging');} dragCardId=null; }
-function dropCard(colId){ if(!dragCardId)return; const c=kanbanCards.find(x=>x.id===dragCardId); if(c){c.colId=colId;persistKanban();renderKanban();} dragCardId=null; }
+function dropCard(colId){ if(!dragCardId)return; const c=kanbanCards.find(x=>x.id===dragCardId); if(c){c.colId=colId;persistKanban();renderKanban(); if(currentUser) upsertKanbanCardDB(c);} dragCardId=null; }
 
 function deleteCol(colId){
   if(!confirm('Excluir esta coluna? Os cards serão movidos para a primeira coluna.')) return;
   const first = kanbanCols.find(c=>c.id!==colId);
-  if(first) kanbanCards.filter(c=>c.colId===colId).forEach(c=>c.colId=first.id);
+  if(first) {
+    kanbanCards.filter(c=>c.colId===colId).forEach(c=>{
+      c.colId=first.id;
+      if(currentUser) upsertKanbanCardDB(c);
+    });
+  }
+  if(currentUser) deleteKanbanColDB(colId);
   kanbanCols = kanbanCols.filter(c=>c.id!==colId);
   persistKanban(); renderKanban();
 }
@@ -2203,6 +2234,11 @@ function saveEstudo(){
   };
   kanbanCards.push(card);
   persistKanban(); closeEstudoModal(); renderKanban();
+  if (currentUser) {
+    upsertKanbanCardDB(card).then(newId => {
+      if (newId) { card.id = newId; persistKanban(); }
+    });
+  }
 }
 
 /* CARD DETAIL PANEL */
@@ -2222,18 +2258,20 @@ function openCardPanel(id){
   document.getElementById('card-detail-panel').classList.add('open');
 }
 function closeCardPanel(){ document.getElementById('card-panel-overlay').classList.remove('open'); document.getElementById('card-detail-panel').classList.remove('open'); openCardId=null; }
-function saveCardObs(){ const c=kanbanCards.find(x=>x.id===openCardId); if(!c)return; c.obs=document.getElementById('cdp-obs').value; persistKanban(); }
+function saveCardObs(){ const c=kanbanCards.find(x=>x.id===openCardId); if(!c)return; c.obs=document.getElementById('cdp-obs').value; persistKanban(); if(currentUser) upsertKanbanCardDB(c); }
 function moveCardLeft(){
   const c=kanbanCards.find(x=>x.id===openCardId); if(!c)return;
-  const idx=kanbanCols.findIndex(x=>x.id===c.colId); if(idx>0){c.colId=kanbanCols[idx-1].id; persistKanban(); renderKanban(); openCardPanel(openCardId);}
+  const idx=kanbanCols.findIndex(x=>x.id===c.colId); if(idx>0){c.colId=kanbanCols[idx-1].id; persistKanban(); if(currentUser) upsertKanbanCardDB(c); renderKanban(); openCardPanel(openCardId);}
 }
 function moveCardRight(){
   const c=kanbanCards.find(x=>x.id===openCardId); if(!c)return;
-  const idx=kanbanCols.findIndex(x=>x.id===c.colId); if(idx<kanbanCols.length-1){c.colId=kanbanCols[idx+1].id; persistKanban(); renderKanban(); openCardPanel(openCardId);}
+  const idx=kanbanCols.findIndex(x=>x.id===c.colId); if(idx<kanbanCols.length-1){c.colId=kanbanCols[idx+1].id; persistKanban(); if(currentUser) upsertKanbanCardDB(c); renderKanban(); openCardPanel(openCardId);}
 }
 function deleteCard(){
   if(!confirm('Excluir este card?'))return;
-  kanbanCards=kanbanCards.filter(x=>x.id!==openCardId);
+  const id = openCardId;
+  if (currentUser) deleteKanbanCardDB(id);
+  kanbanCards=kanbanCards.filter(x=>x.id!==id);
   persistKanban(); renderKanban(); closeCardPanel();
 }
 
@@ -2246,6 +2284,7 @@ function saveFu(){
   const c=kanbanCards.find(x=>x.id===openCardId); if(!c)return;
   c.followups.unshift({dt:dt?new Date(dt).toISOString():new Date().toISOString(), txt});
   persistKanban();
+  if(currentUser) upsertKanbanCardDB(c);
   document.getElementById('fu-new-text').value='';
   document.getElementById('fu-new-date').value='';
   document.getElementById('fu-input-wrap').style.display='none';
@@ -2348,16 +2387,22 @@ function closeEventModal(){ document.getElementById('event-overlay').classList.r
 function saveEvent(){
   const title=(document.getElementById('ev-title').value||'').trim();
   if(!title){alert('Informe o título do evento.');return;}
-  agendaEvents.push({
+  const newEv = {
     id:'ev'+agEvNextId++,
     title, date:document.getElementById('ev-date').value,
     time:document.getElementById('ev-time').value,
     duration:parseInt(document.getElementById('ev-dur').value)||60,
     type:document.getElementById('ev-type').value,
     notes:document.getElementById('ev-notes').value.trim()
-  });
+  };
+  agendaEvents.push(newEv);
   localStorage.setItem('lm_events',JSON.stringify(agendaEvents));
   closeEventModal(); renderAgenda();
+  if(currentUser) {
+    saveEventDB(newEv).then(newId => {
+      if(newId) { newEv.id = newId; localStorage.setItem('lm_events',JSON.stringify(agendaEvents)); }
+    });
+  }
 }
 
 
@@ -2535,40 +2580,223 @@ async function saveProfileDB() {
 
 /* ── CONTACTS ── */
 async function loadContactsDB() {
-  const { data, error } = await supa.from('contacts').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
-  if (error) { console.error('contacts load error:', error); return; }
+  if (!currentUser) return;
+  const { data, error } = await supa
+    .from('contacts').select('*')
+    .eq('user_id', currentUser.id)
+    .order('created_at', { ascending: true });
+  if (error) { console.error('contacts load:', error); return; }
   if (data && data.length > 0) {
     contacts = data.map(r => ({
-      id: r.id, nome: r.nome, genero: r.genero, rec: r.rec,
-      ref: r.ref_rel, tel: r.tel, prof: r.prof, empresa: r.empresa,
-      cidade: r.cidade, es: r.es, end: r.endereco, filhos: r.filhos,
-      semana: r.semana, status: r.status, obs: r.obs,
-      notas: r.notas || [], createdAt: r.created_at?.slice(0,10) || ''
+      id:        r.id,
+      nome:      r.nome,
+      genero:    r.genero    || 'm',
+      rec:       r.rec       || '',
+      ref:       r.ref_rel   || '',
+      tel:       r.tel       || '',
+      prof:      r.prof      || '',
+      empresa:   r.empresa   || '',
+      cidade:    r.cidade    || '',
+      es:        r.es        || '',
+      end:       r.endereco  || '',
+      filhos:    r.filhos    || '',
+      semana:    r.semana    || '',
+      status:    r.status    || 'Lead',
+      obs:       r.obs       || '',
+      notas:     r.notas     || [],
+      createdAt: r.created_at ? r.created_at.slice(0,10) : '',
     }));
-    nextId = contacts.length + 1;
+  } else {
+    contacts = [];
   }
 }
 
 async function upsertContactDB(c) {
+  if (!currentUser) return null;
+  const isNew = !c.id || typeof c.id === 'number';
   const row = {
-    id: typeof c.id === 'number' ? undefined : c.id,
-    user_id: currentUser.id,
-    nome: c.nome, genero: c.genero, rec: c.rec,
-    ref_rel: c.ref, tel: c.tel, prof: c.prof, empresa: c.empresa,
-    cidade: c.cidade, es: c.es, endereco: c.end || '', filhos: c.filhos,
-    semana: c.semana, status: c.status, obs: c.obs, notas: c.notas || []
+    user_id:  currentUser.id,
+    nome:     c.nome,
+    genero:   c.genero   || 'm',
+    rec:      c.rec      || '',
+    ref_rel:  c.ref      || '',
+    tel:      c.tel      || '',
+    prof:     c.prof     || '',
+    empresa:  c.empresa  || '',
+    cidade:   c.cidade   || '',
+    es:       c.es       || '',
+    endereco: c.end      || '',
+    filhos:   c.filhos   || '',
+    semana:   c.semana   || '',
+    status:   c.status   || 'Lead',
+    obs:      c.obs      || '',
+    notas:    c.notas    || [],
   };
-  // if id is a number (local seed) remove it so Supabase generates UUID
-  if (typeof c.id === 'number') delete row.id;
+  if (!isNew) row.id = c.id;
+
   const { data, error } = await supa.from('contacts').upsert(row).select().single();
-  if (error) { console.error('upsert contact error:', error); return null; }
-  return data?.id;
+  if (error) { console.error('upsert contact:', error); return null; }
+  return data?.id || null;
 }
 
 async function deleteContactDB(id) {
-  if (typeof id !== 'number') {
-    await supa.from('contacts').delete().eq('id', id);
+  if (!currentUser || !id || typeof id === 'number') return;
+  await supa.from('contacts').delete().eq('id', id).eq('user_id', currentUser.id);
+}
+
+async function updateContactNotesDB(id, notas) {
+  if (!currentUser || !id || typeof id === 'number') return;
+  await supa.from('contacts').update({ notas }).eq('id', id).eq('user_id', currentUser.id);
+}
+
+/* ── PROFILE DB ── */
+async function loadProfile() {
+  if (!currentUser) return;
+  const { data } = await supa.from('profiles').select('*').eq('id', currentUser.id).single();
+  if (data) {
+    profile.nome    = data.nome    || currentUser.email.split('@')[0];
+    profile.role    = data.role    || 'Life Planner';
+    profile.empresa = data.empresa || 'Prudential do Brasil';
+    profile.foto    = data.foto    || null;
+  } else {
+    profile.nome    = currentUser.email.split('@')[0];
+    profile.role    = 'Life Planner';
+    profile.empresa = 'Prudential do Brasil';
+    profile.foto    = null;
   }
+  persistProfile();
+}
+
+async function saveProfileDB() {
+  if (!currentUser) return;
+  const nome    = (document.getElementById('prof-nome')?.value    || '').trim() || profile.nome;
+  const role    = (document.getElementById('prof-role')?.value    || '').trim() || profile.role;
+  const empresa = (document.getElementById('prof-empresa')?.value || '').trim() || profile.empresa;
+
+  const { error } = await supa.from('profiles').upsert({
+    id: currentUser.id, nome, role, empresa, foto: profile.foto
+  });
+  if (error) { console.error('profile save:', error); return; }
+
+  profile.nome = nome; profile.role = role; profile.empresa = empresa;
+  persistProfile();
+  applyProfile();
+  renderProfile();
+  alert('Perfil salvo com sucesso!');
+}
+
+/* ── KANBAN DB ── */
+async function loadKanbanDB() {
+  if (!currentUser) return;
+
+  const { data: cols } = await supa.from('kanban_cols')
+    .select('*').eq('user_id', currentUser.id).order('position');
+  const { data: cards } = await supa.from('kanban_cards')
+    .select('*').eq('user_id', currentUser.id).order('created_at');
+
+  if (cols && cols.length > 0) {
+    kanbanCols = cols.map(c => ({ id: c.id, title: c.title, color: c.color }));
+  } else {
+    // First time - create default columns
+    await createDefaultKanbanCols();
+    return;
+  }
+  if (cards && cards.length > 0) {
+    kanbanCards = cards.map(c => ({
+      id: c.id, colId: c.col_id, nome: c.nome,
+      produto: c.produto || '', valor: c.valor || '',
+      obs: c.obs || '', followups: c.followups || [],
+      createdAt: c.created_at || ''
+    }));
+  } else {
+    kanbanCards = [];
+  }
+}
+
+async function createDefaultKanbanCols() {
+  const defaults = [
+    { title:'Lead',         color:'#378ADD', position:0 },
+    { title:'Estudo',       color:'#EF9F27', position:1 },
+    { title:'Apresentação', color:'#7F77DD', position:2 },
+    { title:'Negociação',   color:'#D4537E', position:3 },
+    { title:'Ganho',        color:'#1D9E75', position:4 },
+    { title:'Perdido',      color:'#E24B4A', position:5 },
+  ];
+  const rows = defaults.map(d => ({ ...d, user_id: currentUser.id }));
+  const { data } = await supa.from('kanban_cols').insert(rows).select();
+  if (data) kanbanCols = data.map(c => ({ id: c.id, title: c.title, color: c.color }));
+  kanbanCards = [];
+}
+
+async function upsertKanbanColDB(col) {
+  if (!currentUser) return;
+  await supa.from('kanban_cols').upsert({ id: col.id, user_id: currentUser.id, title: col.title, color: col.color });
+}
+
+async function deleteKanbanColDB(id) {
+  if (!currentUser) return;
+  await supa.from('kanban_cols').delete().eq('id', id).eq('user_id', currentUser.id);
+}
+
+async function upsertKanbanCardDB(card) {
+  if (!currentUser) return null;
+  const isNew = !card.id || card.id.startsWith('kc');
+  const row = {
+    user_id:   currentUser.id,
+    col_id:    card.colId,
+    nome:      card.nome,
+    produto:   card.produto  || '',
+    valor:     card.valor    || '',
+    obs:       card.obs      || '',
+    followups: card.followups || [],
+  };
+  if (!isNew) row.id = card.id;
+  const { data, error } = await supa.from('kanban_cards').upsert(row).select().single();
+  if (error) { console.error('upsert card:', error); return null; }
+  return data?.id || null;
+}
+
+async function deleteKanbanCardDB(id) {
+  if (!currentUser || !id || id.startsWith('kc')) return;
+  await supa.from('kanban_cards').delete().eq('id', id).eq('user_id', currentUser.id);
+}
+
+/* ── AGENDA DB ── */
+async function loadAgendaDB() {
+  if (!currentUser) return;
+  const { data } = await supa.from('agenda_events')
+    .select('*').eq('user_id', currentUser.id).order('event_date');
+  if (data && data.length > 0) {
+    agendaEvents = data.map(e => ({
+      id:       e.id,
+      title:    e.title,
+      date:     e.event_date,
+      time:     e.event_time?.slice(0,5) || '08:00',
+      duration: e.duration || 60,
+      type:     e.type || 'reuniao',
+      notes:    e.notes || '',
+    }));
+  } else {
+    agendaEvents = [];
+  }
+}
+
+async function saveEventDB(ev) {
+  if (!currentUser) return null;
+  const isNew = !ev.id || ev.id.startsWith('ev');
+  const row = {
+    user_id:    currentUser.id,
+    title:      ev.title,
+    event_date: ev.date,
+    event_time: ev.time,
+    duration:   ev.duration || 60,
+    type:       ev.type     || 'reuniao',
+    notes:      ev.notes    || '',
+  };
+  if (!isNew) row.id = ev.id;
+  const { data, error } = await supa.from('agenda_events').upsert(row).select().single();
+  if (error) { console.error('save event:', error); return null; }
+  return data?.id || null;
 }
 
 /* ── KEYBOARD ENTER on login ── */
