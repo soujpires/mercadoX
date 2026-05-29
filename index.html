@@ -1003,7 +1003,12 @@ function saveEvent(){
         <div class="list-container">
           <div class="list-header">
             <span class="list-title">Seus contatos</span>
-            <span class="list-count" id="list-count">0 contatos</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="list-count" id="list-count">0 contatos</span>
+              <button onclick="openImportModal()" style="display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:var(--r-sm);border:0.5px solid var(--border);background:var(--white);color:var(--gray);font-size:11px;cursor:pointer;font-family:var(--font)">
+                <i class="ti ti-file-import" style="font-size:13px"></i> Importar
+              </button>
+            </div>
           </div>
           <div id="contact-list"></div>
         </div>
