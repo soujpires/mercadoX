@@ -1936,12 +1936,12 @@ function exportXLSX() {
   const html = `<html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;font-size:12px}</style></head><body><table border="1" cellspacing="0"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>
 <!-- LOGIN SCREEN -->
 <div class="login-screen" id="login-screen">
-  <div class="login-loading" id="login-loading">
+  <div class="login-loading" id="login-loading" style="display:none">
     <div class="spinner"></div>
     Carregando...
   </div>
 
-  <div class="login-box" id="login-box" style="display:none">
+  <div class="login-box" id="login-box" style="display:flex;flex-direction:column;align-items:center">
     <div class="login-logo">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 42" fill="none">
         <circle cx="10" cy="21" r="6" fill="white" opacity="0.95"/>
@@ -2450,14 +2450,24 @@ let currentSession = null;
 
 /* ── BOOT ── */
 async function boot() {
-  // Check existing session
-  const { data: { session } } = await supa.auth.getSession();
-  if (session) {
-    currentSession = session;
-    currentUser = session.user;
-    await loadProfile();
-    showApp();
-  } else {
+  // Show loading briefly while checking session
+  const loadingEl = document.getElementById('login-loading');
+  const boxEl     = document.getElementById('login-box');
+  if (loadingEl) loadingEl.style.display = 'flex';
+  if (boxEl)     boxEl.style.display     = 'none';
+
+  try {
+    const { data: { session } } = await supa.auth.getSession();
+    if (session) {
+      currentSession = session;
+      currentUser = session.user;
+      await loadProfile();
+      showApp();
+    } else {
+      showLoginBox();
+    }
+  } catch(e) {
+    console.error('boot error:', e);
     showLoginBox();
   }
 
@@ -2501,9 +2511,11 @@ function showLoginBox() {
 }
 
 function showResetBox() {
-  document.getElementById('login-box').style.display = 'none';
-  document.getElementById('reset-box').classList.add('show');
-  setTimeout(() => document.getElementById('reset-email').focus(), 100);
+  const box   = document.getElementById('login-box');
+  const reset = document.getElementById('reset-box');
+  if (box)   box.style.display = 'none';
+  if (reset) { reset.style.display = 'flex'; reset.style.flexDirection = 'column'; reset.style.alignItems = 'center'; reset.classList.add('show'); }
+  setTimeout(() => { const r = document.getElementById('reset-email'); if(r) r.focus(); }, 100);
 }
 
 /* ── LOGIN ── */
