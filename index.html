@@ -2491,15 +2491,17 @@ async function boot() {
 
 function showApp() {
   const ls = document.getElementById('login-screen');
-  ls.style.opacity = '0';
-  setTimeout(() => { ls.style.display = 'none'; }, 350);
-  init(); // initialize app
+  if (ls) {
+    ls.style.transition = 'opacity 0.35s';
+    ls.style.opacity = '0';
+    setTimeout(() => { ls.style.display = 'none'; }, 360);
+  }
+  init();
 }
 
 function showLoginScreen() {
   const ls = document.getElementById('login-screen');
-  ls.style.display = 'flex';
-  ls.style.opacity = '1';
+  if (ls) { ls.style.display = 'flex'; ls.style.opacity = '1'; }
   showLoginBox();
 }
 
@@ -2551,6 +2553,14 @@ async function doLogin() {
 /* ── LOGOUT ── */
 async function doLogout() {
   await supa.auth.signOut();
+  currentUser = null;
+  currentSession = null;
+  contacts = [];
+  // Clear local storage
+  localStorage.removeItem('mx_contacts');
+  localStorage.removeItem('mx_profile');
+  // Show login screen
+  showLoginScreen();
 }
 
 /* ── RESET PASSWORD ── */
