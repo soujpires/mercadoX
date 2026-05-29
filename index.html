@@ -2495,7 +2495,7 @@ function showLoginScreen() {
 
 function showLoginBox() {
   document.getElementById('login-loading').style.display = 'none';
-  document.getElementById('login-box').style.display = 'flex';
+  document.getElementById('login-box').style.display = 'flex'; // flex-direction:column
   document.getElementById('reset-box').classList.remove('show');
   setTimeout(() => document.getElementById('login-user').focus(), 100);
 }
@@ -2530,9 +2530,9 @@ async function doLogin() {
   btn.disabled = false;
 
   if (error) {
-    errMsg.textContent = error.message.includes('Invalid') ? 'E-mail ou senha incorretos.' : error.message;
-    errEl.classList.add('show');
-    document.getElementById('login-pass').value = '';
+    if (errMsg) errMsg.textContent = error.message.includes('Invalid') || error.message.includes('credentials') ? 'E-mail ou senha incorretos.' : error.message;
+    if (errEl) errEl.classList.add('show');
+    const lp = document.getElementById('login-pass'); if(lp) lp.value = '';
   }
 }
 
@@ -2645,48 +2645,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
 </script>
 
-<!-- LOGIN SCREEN -->
-<div class="login-screen" id="login-screen">
-  <div class="login-box">
-    <div class="login-logo">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 42" fill="none">
-        <circle cx="10" cy="21" r="6" fill="white" opacity="0.95"/>
-        <circle cx="28" cy="9" r="4.5" fill="white" opacity="0.8"/>
-        <circle cx="28" cy="33" r="4.5" fill="white" opacity="0.8"/>
-        <line x1="16" y1="17.5" x2="24" y2="11.5" stroke="white" stroke-width="1.4" opacity="0.5"/>
-        <line x1="16" y1="24.5" x2="24" y2="30.5" stroke="white" stroke-width="1.4" opacity="0.5"/>
-        <line x1="32.5" y1="11" x2="32.5" y2="31" stroke="white" stroke-width="1" stroke-dasharray="2.5 2.5" opacity="0.3"/>
-        <text x="44" y="27" font-family="DM Sans,sans-serif" font-size="18" font-weight="500" fill="white" letter-spacing="0.3">Lead Map</text>
-      </svg>
-      <div class="login-tagline">Sit Plan Profissional · Conexões que geram negócios</div>
-    </div>
 
-    <div class="login-card">
-      <div class="login-title">Bem-vindo de volta</div>
-      <div class="login-sub">Acesse sua conta para continuar</div>
-
-      <div class="login-field">
-        <label>Usuário</label>
-        <input type="text" id="login-user" placeholder="seu usuário" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()">
-      </div>
-      <div class="login-field">
-        <label>Senha</label>
-        <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
-      </div>
-
-      <div class="login-error" id="login-error">
-        <i class="ti ti-alert-circle" style="font-size:13px;vertical-align:-1px;margin-right:4px"></i>
-        Usuário ou senha incorretos. Tente novamente.
-      </div>
-
-      <button class="login-btn" onclick="doLogin()">
-        <i class="ti ti-login"></i> Entrar
-      </button>
-
-    </div>
-
-    <div class="login-footer">Lead Map © 2025 · Todos os direitos reservados</div>
-  </div>
-</div>
 </body>
 </html>
