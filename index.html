@@ -904,10 +904,9 @@ function saveEvent(){
   </div>
   <div class="drawer-nav">
     <button class="drawer-item active" onclick="navigate('home')"   id="mnav-home"><i class="ti ti-users"></i> Lead Map</button>
-    <button class="drawer-item" onclick="navigate('dashboard')"     id="mnav-dashboard"><i class="ti ti-layout-dashboard"></i> Dashboard</button>
-    <button class="drawer-item" onclick="navigate('ranking')"       id="mnav-ranking"><i class="ti ti-trophy"></i> Ranking</button>
-    <button class="drawer-item" onclick="navigate('reports')"       id="mnav-reports"><i class="ti ti-file-spreadsheet"></i> Relatórios</button>
     <button class="drawer-item" onclick="navigate('pipeline')"      id="mnav-pipeline"><i class="ti ti-layout-kanban"></i> Pipeline</button>
+    <button class="drawer-item" onclick="navigate('dashboard')"     id="mnav-dashboard"><i class="ti ti-layout-dashboard"></i> Dashboard</button>
+    <button class="drawer-item" onclick="navigate('reports')"       id="mnav-reports"><i class="ti ti-file-spreadsheet"></i> Relatórios</button>
     <button class="drawer-item" onclick="navigate('agenda')"        id="mnav-agenda"><i class="ti ti-calendar-week"></i> Agenda</button>
     <button class="drawer-item" onclick="navigate('profile')"       id="mnav-profile"><i class="ti ti-user-circle"></i> Meu perfil</button>
   </div>
@@ -943,11 +942,10 @@ function saveEvent(){
     </div>
     <nav class="sb-nav">
       <button class="sb-item active" onclick="navigate('home')"      id="snav-home"><i class="ti ti-users"></i><span class="sb-label">Lead Map</span></button>
+      <button class="sb-item" onclick="navigate('pipeline')"         id="snav-pipeline"><i class="ti ti-layout-kanban"></i><span class="sb-label">Pipeline</span></button>
       <button class="sb-item" onclick="navigate('dashboard')"        id="snav-dashboard"><i class="ti ti-layout-dashboard"></i><span class="sb-label">Dashboard</span></button>
-      <button class="sb-item" onclick="navigate('ranking')"          id="snav-ranking"><i class="ti ti-trophy"></i><span class="sb-label">Ranking</span></button>
       <button class="sb-item" onclick="navigate('reports')"          id="snav-reports"><i class="ti ti-file-spreadsheet"></i><span class="sb-label">Relatórios</span></button>
-      <button class="sb-item" onclick="navigate('pipeline')"        id="snav-pipeline"><i class="ti ti-layout-kanban"></i><span class="sb-label">Pipeline</span></button>
-      <button class="sb-item" onclick="navigate('agenda')"          id="snav-agenda"><i class="ti ti-calendar-week"></i><span class="sb-label">Agenda</span></button>
+      <button class="sb-item" onclick="navigate('agenda')"           id="snav-agenda"><i class="ti ti-calendar-week"></i><span class="sb-label">Agenda</span></button>
       <button class="sb-item" onclick="navigate('profile')"          id="snav-profile"><i class="ti ti-user-circle"></i><span class="sb-label">Meu perfil</span></button>
     </nav>
     <button onclick="doLogout()" style="display:flex;align-items:center;gap:10px;height:40px;padding:0 14px;color:rgba(226,75,74,0.7);font-size:12px;font-family:var(--font);background:none;border:none;border-top:0.5px solid rgba(255,255,255,0.07);cursor:pointer;width:100%;white-space:nowrap;overflow:hidden">
@@ -1379,11 +1377,18 @@ function updateStats() {
 /* ─── NAVIGATION ─────────────────────────────────────────────── */
 function navigate(page) {
   activePage = page;
+  // Switch page
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.getElementById(`page-${page}`).classList.add('active');
+  const pageEl = document.getElementById(`page-${page}`);
+  if (pageEl) pageEl.classList.add('active');
+  // Update sidebar items
+  document.querySelectorAll('.sb-item').forEach(i => i.classList.remove('active'));
+  const sbEl = document.getElementById(`snav-${page}`);
+  if (sbEl) sbEl.classList.add('active');
+  // Update drawer items
   document.querySelectorAll('.drawer-item').forEach(i => i.classList.remove('active'));
-  const navEl = document.getElementById(`nav-${page}`);
-  if (navEl) navEl.classList.add('active');
+  const mnEl = document.getElementById(`mnav-${page}`);
+  if (mnEl) mnEl.classList.add('active');
   closeDrawer();
 
   if (page === 'dashboard') renderDashboard();
@@ -2835,6 +2840,160 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 
+
+/* ════════════════════════════════════════════════════════
+   IMPORT SPREADSHEET
+════════════════════════════════════════════════════════ */
+let importParsedContacts = [];
+
+function openImportModal() {
+  importParsedContacts = [];
+  document.getElementById('import-preview').style.display = 'none';
+  document.getElementById('import-error').style.display   = 'none';
+  document.getElementById('import-file-input').value = '';
+  document.getElementById('import-btn').disabled = true;
+  document.getElementById('import-btn').style.opacity = '0.5';
+  document.getElementById('import-btn-label').textContent = 'Importar contatos';
+  document.getElementById('import-overlay').classList.add('open');
+  document.getElementById('import-modal').classList.add('open');
+}
+function closeImportModal() {
+  document.getElementById('import-overlay').classList.remove('open');
+  document.getElementById('import-modal').classList.remove('open');
+}
+function handleImportDrop(e) {
+  e.preventDefault();
+  document.getElementById('import-drop-zone').style.borderColor = 'var(--border)';
+  const file = e.dataTransfer.files[0];
+  if (file) processImportFile(file);
+}
+function handleImportFile(input) {
+  const file = input.files[0];
+  if (file) processImportFile(file);
+}
+function processImportFile(file) {
+  const errEl = document.getElementById('import-error');
+  errEl.style.display = 'none';
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const content = e.target.result;
+      let rows = [];
+      if (file.name.endsWith('.csv')) {
+        rows = parseCSVImport(content);
+      } else {
+        rows = parseHTMLTableImport(content);
+      }
+      if (!rows || rows.length < 2) { showImportError('Arquivo vazio ou sem dados reconhecíveis.'); return; }
+      const headers = rows[0].map(h => (h||'').trim().toLowerCase());
+      const parsed = [];
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i];
+        if (!row || row.every(c => !c)) continue;
+        const get = (...keys) => {
+          for (const k of keys) {
+            const idx = headers.findIndex(h => h.includes(k));
+            if (idx >= 0 && row[idx]) return String(row[idx]).trim();
+          }
+          return '';
+        };
+        const nome = get('nome');
+        if (!nome) continue;
+        if (contacts.find(c => c.nome.toLowerCase() === nome.toLowerCase())) continue;
+        const generoRaw = get('gênero','genero','gender').toLowerCase();
+        parsed.push({
+          nome, genero: generoRaw.includes('f') ? 'f' : 'm',
+          rec: get('recomendante','rec'), ref: get('relação','relacao','ref'),
+          tel: get('telefone','tel','fone'), prof: get('profissão','profissao','prof'),
+          empresa: get('empresa','company','cargo'), cidade: get('cidade','city'),
+          es: get('estado','es','uf'), end: get('endereço','endereco'),
+          filhos: get('filho','filhos'), semana: get('semana'),
+          status: mapImportStatus(get('status')), obs: get('observações','observacoes','obs'),
+          notas: [], createdAt: new Date().toISOString().slice(0,10),
+        });
+      }
+      if (!parsed.length) { showImportError('Nenhum contato novo encontrado. Todos já estão cadastrados ou o arquivo não tem dados válidos.'); return; }
+      importParsedContacts = parsed;
+      showImportPreview(parsed);
+    } catch(err) { showImportError('Erro ao ler o arquivo: ' + err.message); }
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+function parseCSVImport(text) {
+  return text.split('\n').map(line => {
+    const cells = []; let cur = '', inQ = false;
+    for (const ch of line) {
+      if (ch === '"') { inQ = !inQ; }
+      else if (ch === ',' && !inQ) { cells.push(cur); cur = ''; }
+      else { cur += ch; }
+    }
+    cells.push(cur);
+    return cells.map(c => c.replace(/^"|"$/g,'').trim());
+  }).filter(r => r.some(c => c));
+}
+function parseHTMLTableImport(html) {
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  const rows = div.querySelectorAll('tr');
+  return Array.from(rows).map(tr =>
+    Array.from(tr.querySelectorAll('td,th')).map(td => td.textContent.trim())
+  );
+}
+function mapImportStatus(raw) {
+  if (!raw) return 'Lead';
+  const r = raw.toLowerCase();
+  if (r.includes('ativo') || r.includes('cliente')) return 'Cliente ativo';
+  if (r.includes('abordagem')) return 'Em abordagem';
+  if (r.includes('aguard')) return 'Aguardando retorno';
+  if (r.includes('convertido')) return 'Não convertido';
+  if (r.includes('interesse')) return 'SI';
+  if (r === 'oi') return 'OI';
+  if (r === 'delay') return 'DELAY';
+  if (r === 'nc') return 'NC';
+  if (r === 'lf') return 'LF';
+  if (r === 'lp') return 'LP';
+  if (r === 'cp') return 'CP';
+  return 'Lead';
+}
+function showImportError(msg) {
+  const el = document.getElementById('import-error');
+  el.textContent = msg; el.style.display = 'block';
+  document.getElementById('import-preview').style.display = 'none';
+  document.getElementById('import-btn').disabled = true;
+  document.getElementById('import-btn').style.opacity = '0.5';
+}
+function showImportPreview(parsed) {
+  document.getElementById('import-preview-title').textContent =
+    parsed.length + ' contato' + (parsed.length !== 1 ? 's' : '') + ' encontrados para importar:';
+  document.getElementById('import-preview-list').innerHTML = parsed.map(c =>
+    '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:0.5px solid var(--border);font-size:12px">' +
+    '<div class="avatar ' + (c.genero==='f'?'av-f':'av-m') + '" style="width:28px;height:28px;font-size:12px;flex-shrink:0"><i class="ti ti-user"></i></div>' +
+    '<div style="flex:1;min-width:0"><div style="font-weight:500;color:var(--text)">' + escHtml(c.nome) + '</div>' +
+    '<div style="color:var(--gray)">' + escHtml([c.prof,c.empresa].filter(Boolean).join(' — ') || '—') + '</div></div>' +
+    '<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:' + (S[c.status]||S['Lead']).bg + ';color:' + (S[c.status]||S['Lead']).color + '">' + c.status + '</span></div>'
+  ).join('');
+  document.getElementById('import-preview').style.display = 'block';
+  document.getElementById('import-btn').disabled = false;
+  document.getElementById('import-btn').style.opacity = '1';
+  document.getElementById('import-btn-label').textContent = 'Importar ' + parsed.length + ' contato' + (parsed.length!==1?'s':'');
+}
+async function confirmImport() {
+  if (!importParsedContacts.length) return;
+  const btn = document.getElementById('import-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:16px;height:16px;border-width:2px;margin:0 auto"></div>';
+  let imported = 0;
+  for (const c of importParsedContacts) {
+    c.id = nextId++;
+    contacts.push(c);
+    if (currentUser) { const newId = await upsertContactDB(c); if (newId) c.id = newId; }
+    imported++;
+  }
+  persist(); renderList(); updateStats();
+  closeImportModal(); importParsedContacts = [];
+  alert(imported + ' contato' + (imported!==1?'s':'') + ' importado' + (imported!==1?'s':'') + ' com sucesso!');
+}
+
 </script>
 
 
@@ -2913,5 +3072,43 @@ document.addEventListener('DOMContentLoaded', () => {
 </div>
 
 </div>
+
+<!-- IMPORT MODAL -->
+<div class="modal-overlay" id="import-overlay" onclick="closeImportModal()"></div>
+<div class="modal" id="import-modal">
+  <div class="modal-header">
+    <h2 class="modal-title">Importar planilha</h2>
+    <button class="modal-close" onclick="closeImportModal()"><i class="ti ti-x"></i></button>
+  </div>
+  <div class="modal-body">
+    <div style="background:var(--offwhite);border-radius:var(--r-md);padding:16px;margin-bottom:16px">
+      <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:6px"><i class="ti ti-info-circle" style="color:var(--gold);margin-right:5px"></i> Formatos aceitos</div>
+      <div style="font-size:12px;color:var(--gray);line-height:1.6">
+        • Planilha exportada pelo Lead Map (XLS/CSV)<br>
+        • Excel com colunas: <strong>Nome, Telefone, Profissão, Empresa, Cidade, Status</strong><br>
+        • A primeira linha deve conter os cabeçalhos<br>
+        • Contatos duplicados (mesmo nome) serão ignorados
+      </div>
+    </div>
+    <div id="import-drop-zone" style="border:2px dashed var(--border);border-radius:var(--r-md);padding:32px;text-align:center;cursor:pointer;transition:all 0.15s" onclick="document.getElementById('import-file-input').click()" ondragover="event.preventDefault();this.style.borderColor='var(--gold)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="handleImportDrop(event)">
+      <i class="ti ti-upload" style="font-size:32px;color:var(--gray-light);display:block;margin-bottom:10px"></i>
+      <div style="font-size:14px;font-weight:500;color:var(--text);margin-bottom:4px">Clique ou arraste o arquivo aqui</div>
+      <div style="font-size:12px;color:var(--gray)">Suporta .xlsx, .xls, .csv</div>
+      <input type="file" id="import-file-input" accept=".xlsx,.xls,.csv,.html" style="display:none" onchange="handleImportFile(this)">
+    </div>
+    <div id="import-preview" style="display:none;margin-top:14px">
+      <div style="font-size:12px;font-weight:500;color:var(--text);margin-bottom:8px" id="import-preview-title"></div>
+      <div style="max-height:200px;overflow-y:auto;border:0.5px solid var(--border);border-radius:var(--r-sm)" id="import-preview-list"></div>
+    </div>
+    <div id="import-error" style="display:none;background:#FCEBEB;border:0.5px solid #f5c1c1;border-radius:var(--r-sm);padding:10px 12px;font-size:12px;color:#791F1F;margin-top:12px"></div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn-cancel" onclick="closeImportModal()">Cancelar</button>
+    <button class="btn-save" id="import-btn" onclick="confirmImport()" disabled style="opacity:0.5">
+      <i class="ti ti-check"></i> <span id="import-btn-label">Importar contatos</span>
+    </button>
+  </div>
+</div>
+
 </body>
 </html>
