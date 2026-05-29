@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
 <title>Lead Map — Prudential</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
@@ -694,6 +695,22 @@ function saveEvent(){
 }
 
 
+
+/* ── LOGIN IMPROVEMENTS ── */
+.login-screen{position:fixed;inset:0;background:var(--navy);display:flex;align-items:center;justify-content:center;z-index:999;padding:20px;transition:opacity 0.35s}
+.login-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:rgba(255,255,255,0.5);font-size:13px}
+.spinner{width:36px;height:36px;border:3px solid rgba(201,168,76,0.2);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.login-forgot{text-align:right;margin-top:-8px;margin-bottom:14px}
+.login-forgot a{font-size:11px;color:rgba(255,255,255,0.4);cursor:pointer;text-decoration:none}
+.login-forgot a:hover{color:var(--gold)}
+.login-success{background:rgba(29,158,117,0.15);border:0.5px solid rgba(29,158,117,0.4);border-radius:8px;padding:9px 12px;font-size:12px;color:#9FE1CB;margin-bottom:14px;display:none}
+.login-success.show{display:block}
+/* Reset password screen */
+.reset-box{display:none;width:100%;max-width:380px}
+.reset-box.show{display:block}
+.login-box.hide{display:none}
+
 /* ── LOGIN ── */
 .login-screen{position:fixed;inset:0;background:var(--navy);display:flex;align-items:center;justify-content:center;z-index:999;padding:20px}
 .login-box{width:100%;max-width:380px;display:flex;flex-direction:column;align-items:center}
@@ -873,6 +890,7 @@ function saveEvent(){
     <button class="drawer-item" onclick="navigate('profile')"       id="mnav-profile"><i class="ti ti-user-circle"></i> Meu perfil</button>
   </div>
   <button class="drawer-close-btn" onclick="closeDrawer()"><i class="ti ti-x"></i> Fechar</button>
+  <button class="drawer-close-btn" onclick="doLogout()" style="color:rgba(226,75,74,0.7);border-top:none;padding-top:0"><i class="ti ti-logout"></i> Sair da conta</button>
 </nav>
 
 <!-- LAYOUT -->
@@ -1676,6 +1694,13 @@ function saveContact() {
   closeModal();
   renderList();
   updateStats();
+  // sync to Supabase if logged in
+  if (currentUser) {
+    const saved = editingId ? contacts.find(c=>c.id===editingId) : contacts[contacts.length-1];
+    if (saved) upsertContactDB(saved).then(newId => {
+      if (newId && !editingId) { saved.id = newId; persist(); }
+    });
+  }
 }
 
 /* ─── RECOMENDANTE AUTOCOMPLETE ──────────────────────────────── */
@@ -1909,7 +1934,12 @@ function exportXLSX() {
   const html = `<html><head><meta charset="utf-8"><style>body{font-family:Arial,sans-serif;font-size:12px}</style></head><body><table border="1" cellspacing="0"><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>
 <!-- LOGIN SCREEN -->
 <div class="login-screen" id="login-screen">
-  <div class="login-box">
+  <div class="login-loading" id="login-loading">
+    <div class="spinner"></div>
+    Carregando...
+  </div>
+
+  <div class="login-box" id="login-box" style="display:none">
     <div class="login-logo">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 42" fill="none">
         <circle cx="10" cy="21" r="6" fill="white" opacity="0.95"/>
@@ -1922,33 +1952,60 @@ function exportXLSX() {
       </svg>
       <div class="login-tagline">Sit Plan Profissional · Conexões que geram negócios</div>
     </div>
-
     <div class="login-card">
       <div class="login-title">Bem-vindo de volta</div>
       <div class="login-sub">Acesse sua conta para continuar</div>
-
+      <div class="login-success" id="login-success-msg"></div>
       <div class="login-field">
-        <label>Usuário</label>
-        <input type="text" id="login-user" placeholder="seu usuário" autocomplete="username" onkeydown="if(event.key==='Enter')doLogin()">
+        <label>E-mail</label>
+        <input type="email" id="login-user" placeholder="seu@email.com" autocomplete="email">
       </div>
       <div class="login-field">
         <label>Senha</label>
-        <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+        <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password">
       </div>
-
+      <div class="login-forgot"><a onclick="showResetBox()">Esqueci minha senha</a></div>
       <div class="login-error" id="login-error">
         <i class="ti ti-alert-circle" style="font-size:13px;vertical-align:-1px;margin-right:4px"></i>
-        Usuário ou senha incorretos. Tente novamente.
+        <span id="login-error-msg">E-mail ou senha incorretos.</span>
       </div>
-
-      <button class="login-btn" onclick="doLogin()">
+      <button class="login-btn" id="login-btn" onclick="doLogin()">
         <i class="ti ti-login"></i> Entrar
       </button>
-
     </div>
-
     <div class="login-footer">Lead Map © 2025 · Todos os direitos reservados</div>
   </div>
+
+  <div class="reset-box" id="reset-box">
+    <div class="login-logo">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 42" fill="none">
+        <circle cx="10" cy="21" r="6" fill="white" opacity="0.95"/>
+        <circle cx="28" cy="9" r="4.5" fill="white" opacity="0.8"/>
+        <circle cx="28" cy="33" r="4.5" fill="white" opacity="0.8"/>
+        <line x1="16" y1="17.5" x2="24" y2="11.5" stroke="white" stroke-width="1.4" opacity="0.5"/>
+        <line x1="16" y1="24.5" x2="24" y2="30.5" stroke="white" stroke-width="1.4" opacity="0.5"/>
+        <text x="44" y="27" font-family="DM Sans,sans-serif" font-size="18" font-weight="500" fill="white" letter-spacing="0.3">Lead Map</text>
+      </svg>
+    </div>
+    <div class="login-card">
+      <div class="login-title">Recuperar senha</div>
+      <div class="login-sub">Enviaremos um link para seu e-mail</div>
+      <div class="login-success" id="reset-success-msg"></div>
+      <div class="login-error" id="reset-error"></div>
+      <div class="login-field">
+        <label>E-mail</label>
+        <input type="email" id="reset-email" placeholder="seu@email.com">
+      </div>
+      <button class="login-btn" onclick="doReset()">
+        <i class="ti ti-mail"></i> Enviar link de recuperação
+      </button>
+      <button onclick="showLoginBox()" style="width:100%;margin-top:10px;padding:10px;border-radius:9px;border:0.5px solid rgba(255,255,255,0.1);background:none;color:rgba(255,255,255,0.4);font-size:12px;cursor:pointer;font-family:var(--font)">
+        ← Voltar ao login
+      </button>
+    </div>
+  </div>
+</div>
+
 </div>
 </body></html>`;
 
@@ -1996,7 +2053,7 @@ function renderProfile() {
           <label>Empresa</label>
           <input type="text" id="prof-empresa" value="${escHtml(profile.empresa || 'Prudential do Brasil')}" placeholder="Nome da empresa">
         </div>
-        <button class="btn-profile-save" onclick="saveProfile()">
+        <button class="btn-profile-save" onclick="saveProfileDB ? saveProfileDB() : saveProfile()">
           <i class="ti ti-check" style="font-size:14px;margin-right:6px"></i> Salvar perfil
         </button>
       </div>
@@ -2064,8 +2121,12 @@ function applyProfile() {
 /* ─── INIT ───────────────────────────────────────────────────── */
 function init() {
   applyProfile();
-  renderList();
-  updateStats();
+  if (currentUser) {
+    loadContactsDB().then(() => { renderList(); updateStats(); });
+  } else {
+    renderList();
+    updateStats();
+  }
 
   // Close rec dropdown on outside click
   document.addEventListener('click', e => {
@@ -2375,38 +2436,227 @@ function saveEvent(){
 }
 
 
-/* ── LOGIN ── */
-(function(){
-  var USERS = [{user:'teste',pass:'teste'}];
 
-  function doLogin() {
-    var u = (document.getElementById('login-user').value||'').trim().toLowerCase();
-    var p = (document.getElementById('login-pass').value||'').trim();
-    var err = document.getElementById('login-error');
-    var ok = USERS.some(function(x){return x.user===u && x.pass===p;});
-    if(ok){
-      err.classList.remove('show');
-      var screen = document.getElementById('login-screen');
-      screen.style.transition = 'opacity 0.35s';
-      screen.style.opacity = '0';
-      setTimeout(function(){ screen.style.display='none'; }, 360);
-    } else {
-      err.classList.add('show');
-      document.getElementById('login-pass').value='';
-      document.getElementById('login-pass').focus();
-    }
+/* ── LOGIN IMPROVEMENTS ── */
+.login-screen{position:fixed;inset:0;background:var(--navy);display:flex;align-items:center;justify-content:center;z-index:999;padding:20px;transition:opacity 0.35s}
+.login-loading{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:rgba(255,255,255,0.5);font-size:13px}
+.spinner{width:36px;height:36px;border:3px solid rgba(201,168,76,0.2);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.login-forgot{text-align:right;margin-top:-8px;margin-bottom:14px}
+.login-forgot a{font-size:11px;color:rgba(255,255,255,0.4);cursor:pointer;text-decoration:none}
+.login-forgot a:hover{color:var(--gold)}
+.login-success{background:rgba(29,158,117,0.15);border:0.5px solid rgba(29,158,117,0.4);border-radius:8px;padding:9px 12px;font-size:12px;color:#9FE1CB;margin-bottom:14px;display:none}
+.login-success.show{display:block}
+/* Reset password screen */
+.reset-box{display:none;width:100%;max-width:380px}
+.reset-box.show{display:block}
+.login-box.hide{display:none}
+
+
+/* ════════════════════════════════════════════════════════
+   SUPABASE AUTH + DATA
+════════════════════════════════════════════════════════ */
+const SUPA_URL = 'https://nfvymrqqldkungdogila.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5mdnltcnFxbGRrdW5nZG9naWxhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAwMjc5MjAsImV4cCI6MjA5NTYwMzkyMH0.yLRWz-cWiDy8Dw71Xdh1sFjIDk7T6CRUKZM3weIoqmA';
+const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+let currentUser = null;
+let currentSession = null;
+
+/* ── BOOT ── */
+async function boot() {
+  // Check existing session
+  const { data: { session } } = await supa.auth.getSession();
+  if (session) {
+    currentSession = session;
+    currentUser = session.user;
+    await loadProfile();
+    showApp();
+  } else {
+    showLoginBox();
   }
 
-  window.doLogin = doLogin;
-
-  document.addEventListener('DOMContentLoaded', function(){
-    var u = document.getElementById('login-user');
-    var p = document.getElementById('login-pass');
-    if(u) u.addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
-    if(p) p.addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
-    if(u) u.focus();
+  // Listen for auth changes
+  supa.auth.onAuthStateChange(async (event, session) => {
+    if (event === 'SIGNED_IN' && session) {
+      currentSession = session;
+      currentUser = session.user;
+      await loadProfile();
+      showApp();
+    } else if (event === 'SIGNED_OUT') {
+      currentUser = null;
+      currentSession = null;
+      showLoginScreen();
+    } else if (event === 'PASSWORD_RECOVERY') {
+      // user came from reset email — show app so they can change password
+      showApp();
+    }
   });
-})();
+}
+
+function showApp() {
+  const ls = document.getElementById('login-screen');
+  ls.style.opacity = '0';
+  setTimeout(() => { ls.style.display = 'none'; }, 350);
+  init(); // initialize app
+}
+
+function showLoginScreen() {
+  const ls = document.getElementById('login-screen');
+  ls.style.display = 'flex';
+  ls.style.opacity = '1';
+  showLoginBox();
+}
+
+function showLoginBox() {
+  document.getElementById('login-loading').style.display = 'none';
+  document.getElementById('login-box').style.display = 'flex';
+  document.getElementById('reset-box').classList.remove('show');
+  setTimeout(() => document.getElementById('login-user').focus(), 100);
+}
+
+function showResetBox() {
+  document.getElementById('login-box').style.display = 'none';
+  document.getElementById('reset-box').classList.add('show');
+  setTimeout(() => document.getElementById('reset-email').focus(), 100);
+}
+
+/* ── LOGIN ── */
+async function doLogin() {
+  const email = (document.getElementById('login-user').value || '').trim();
+  const pass  = (document.getElementById('login-pass').value || '').trim();
+  const errEl = document.getElementById('login-error');
+  const errMsg = document.getElementById('login-error-msg');
+  const btn   = document.getElementById('login-btn');
+
+  if (!email || !pass) {
+    errMsg.textContent = 'Preencha e-mail e senha.';
+    errEl.classList.add('show');
+    return;
+  }
+
+  btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;border-width:2px;margin:0 auto"></div>';
+  btn.disabled = true;
+  errEl.classList.remove('show');
+
+  const { error } = await supa.auth.signInWithPassword({ email, password: pass });
+
+  btn.innerHTML = '<i class="ti ti-login"></i> Entrar';
+  btn.disabled = false;
+
+  if (error) {
+    errMsg.textContent = error.message.includes('Invalid') ? 'E-mail ou senha incorretos.' : error.message;
+    errEl.classList.add('show');
+    document.getElementById('login-pass').value = '';
+  }
+}
+
+/* ── LOGOUT ── */
+async function doLogout() {
+  await supa.auth.signOut();
+}
+
+/* ── RESET PASSWORD ── */
+async function doReset() {
+  const email = (document.getElementById('reset-email').value || '').trim();
+  const errEl = document.getElementById('reset-error');
+  const sucEl = document.getElementById('reset-success-msg');
+
+  if (!email) { errEl.innerHTML = 'Informe o e-mail.'; errEl.classList.add('show'); return; }
+
+  const { error } = await supa.auth.resetPasswordForEmail(email, {
+    redirectTo: window.location.origin
+  });
+
+  if (error) {
+    errEl.innerHTML = error.message;
+    errEl.classList.add('show');
+  } else {
+    sucEl.textContent = 'Link enviado! Verifique seu e-mail.';
+    sucEl.classList.add('show');
+    errEl.classList.remove('show');
+  }
+}
+
+/* ── PROFILE ── */
+async function loadProfile() {
+  const { data } = await supa.from('profiles').select('*').eq('id', currentUser.id).single();
+  if (data) {
+    profile.nome    = data.nome    || currentUser.email.split('@')[0];
+    profile.role    = data.role    || 'Life Planner';
+    profile.empresa = data.empresa || 'Prudential do Brasil';
+    profile.foto    = data.foto    || null;
+  } else {
+    profile.nome = currentUser.email.split('@')[0];
+  }
+}
+
+async function saveProfileDB() {
+  const nome    = (document.getElementById('prof-nome').value    || '').trim() || profile.nome;
+  const role    = (document.getElementById('prof-role').value    || '').trim() || profile.role;
+  const empresa = (document.getElementById('prof-empresa').value || '').trim() || profile.empresa;
+
+  await supa.from('profiles').upsert({
+    id: currentUser.id, nome, role, empresa, foto: profile.foto
+  });
+
+  profile.nome = nome; profile.role = role; profile.empresa = empresa;
+  persistProfile();
+  applyProfile();
+  renderProfile();
+}
+
+/* ── CONTACTS ── */
+async function loadContactsDB() {
+  const { data, error } = await supa.from('contacts').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
+  if (error) { console.error('contacts load error:', error); return; }
+  if (data && data.length > 0) {
+    contacts = data.map(r => ({
+      id: r.id, nome: r.nome, genero: r.genero, rec: r.rec,
+      ref: r.ref_rel, tel: r.tel, prof: r.prof, empresa: r.empresa,
+      cidade: r.cidade, es: r.es, end: r.endereco, filhos: r.filhos,
+      semana: r.semana, status: r.status, obs: r.obs,
+      notas: r.notas || [], createdAt: r.created_at?.slice(0,10) || ''
+    }));
+    nextId = contacts.length + 1;
+  }
+}
+
+async function upsertContactDB(c) {
+  const row = {
+    id: typeof c.id === 'number' ? undefined : c.id,
+    user_id: currentUser.id,
+    nome: c.nome, genero: c.genero, rec: c.rec,
+    ref_rel: c.ref, tel: c.tel, prof: c.prof, empresa: c.empresa,
+    cidade: c.cidade, es: c.es, endereco: c.end || '', filhos: c.filhos,
+    semana: c.semana, status: c.status, obs: c.obs, notas: c.notas || []
+  };
+  // if id is a number (local seed) remove it so Supabase generates UUID
+  if (typeof c.id === 'number') delete row.id;
+  const { data, error } = await supa.from('contacts').upsert(row).select().single();
+  if (error) { console.error('upsert contact error:', error); return null; }
+  return data?.id;
+}
+
+async function deleteContactDB(id) {
+  if (typeof id !== 'number') {
+    await supa.from('contacts').delete().eq('id', id);
+  }
+}
+
+/* ── KEYBOARD ENTER on login ── */
+document.addEventListener('DOMContentLoaded', () => {
+  ['login-user','login-pass'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('keydown', e => { if(e.key==='Enter') doLogin(); });
+  });
+  const re = document.getElementById('reset-email');
+  if (re) re.addEventListener('keydown', e => { if(e.key==='Enter') doReset(); });
+
+  // Boot
+  boot();
+});
+
 
 </script>
 
