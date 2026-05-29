@@ -887,6 +887,28 @@ function saveEvent(){
 .login-box.hide{display:none}
 
 
+
+/* ── PASSWORD RESET SCREEN ── */
+.reset-screen{position:fixed;inset:0;background:var(--navy);display:none;align-items:center;justify-content:center;z-index:998;padding:20px}
+.reset-screen.open{display:flex}
+.reset-card{width:100%;max-width:400px;background:rgba(255,255,255,0.04);border:0.5px solid rgba(255,255,255,0.1);border-radius:16px;padding:32px 28px}
+.reset-card-title{color:#fff;font-size:18px;font-weight:500;margin-bottom:6px}
+.reset-card-sub{color:rgba(255,255,255,0.4);font-size:13px;margin-bottom:24px}
+.reset-field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px}
+.reset-field label{font-size:11px;color:rgba(255,255,255,0.5);font-weight:500;text-transform:uppercase;letter-spacing:0.06em}
+.reset-field input{background:rgba(255,255,255,0.07);border:0.5px solid rgba(255,255,255,0.12);border-radius:9px;padding:11px 14px;font-size:14px;color:#fff;font-family:var(--font);outline:none;transition:border-color 0.15s}
+.reset-field input:focus{border-color:var(--gold)}
+.reset-field input::placeholder{color:rgba(255,255,255,0.25)}
+.reset-strength{height:4px;border-radius:2px;margin-top:6px;transition:all 0.3s;background:rgba(255,255,255,0.1)}
+.reset-strength-text{font-size:10px;margin-top:4px;color:rgba(255,255,255,0.4)}
+.reset-btn{width:100%;padding:13px;border-radius:10px;background:var(--gold);color:var(--navy);border:none;font-size:14px;font-weight:600;cursor:pointer;font-family:var(--font);margin-top:4px;transition:all 0.15s;display:flex;align-items:center;justify-content:center;gap:8px}
+.reset-btn:hover{background:var(--gold-light)}
+.reset-btn:disabled{opacity:0.5;cursor:not-allowed}
+.reset-success{background:rgba(29,158,117,0.15);border:0.5px solid rgba(29,158,117,0.4);border-radius:8px;padding:12px;font-size:13px;color:#9FE1CB;margin-bottom:16px;display:none;text-align:center}
+.reset-success.show{display:block}
+.reset-error-msg{background:rgba(226,75,74,0.15);border:0.5px solid rgba(226,75,74,0.3);border-radius:8px;padding:9px 12px;font-size:12px;color:#f09595;margin-bottom:14px;display:none}
+.reset-error-msg.show{display:block}
+
 </style>
 </head>
 <body>
@@ -2442,6 +2464,9 @@ let currentSession = null;
 /* ── BOOT ── */
 async function boot() {
   try {
+    // Check if this is a password reset / invite link FIRST
+    if (checkForPasswordReset()) return;
+
     const { data } = await supa.auth.getSession();
     if (data && data.session) {
       currentSession = data.session;
@@ -2999,6 +3024,114 @@ async function confirmImport() {
   alert(imported + ' contato' + (imported!==1?'s':'') + ' importado' + (imported!==1?'s':'') + ' com sucesso!');
 }
 
+
+/* ════════════════════════════════════════════════════════
+   PASSWORD RESET / INVITE FLOW
+════════════════════════════════════════════════════════ */
+function checkForPasswordReset() {
+  // Supabase puts tokens in the URL hash when user clicks invite/reset link
+  const hash = window.location.hash;
+  const params = new URLSearchParams(hash.replace('#', '?'));
+  const type = params.get('type');
+  const accessToken = params.get('access_token');
+
+  if ((type === 'invite' || type === 'recovery') && accessToken) {
+    // Set the session from the URL tokens
+    supa.auth.setSession({
+      access_token: accessToken,
+      refresh_token: params.get('refresh_token') || ''
+    }).then(() => {
+      showResetScreen();
+    });
+    return true;
+  }
+  return false;
+}
+
+function showResetScreen() {
+  document.getElementById('reset-screen').classList.add('open');
+  document.getElementById('login-screen').style.display = 'none';
+  setTimeout(() => {
+    const el = document.getElementById('reset-pw-new');
+    if (el) el.focus();
+  }, 200);
+}
+
+function checkPwStrength(pw) {
+  const bar  = document.getElementById('pw-strength-bar');
+  const text = document.getElementById('pw-strength-text');
+  if (!pw) { bar.style.background = 'rgba(255,255,255,0.1)'; bar.style.width = '0'; text.textContent = ''; return; }
+  let score = 0;
+  if (pw.length >= 8)  score++;
+  if (pw.length >= 12) score++;
+  if (/[A-Z]/.test(pw)) score++;
+  if (/[0-9]/.test(pw)) score++;
+  if (/[^A-Za-z0-9]/.test(pw)) score++;
+  const levels = [
+    { color:'#E24B4A', label:'Muito fraca', w:'20%' },
+    { color:'#EF9F27', label:'Fraca',       w:'40%' },
+    { color:'#EF9F27', label:'Razoável',    w:'60%' },
+    { color:'#1D9E75', label:'Boa',         w:'80%' },
+    { color:'#1D9E75', label:'Forte',       w:'100%'},
+  ];
+  const lvl = levels[Math.min(score, 4)];
+  bar.style.background = lvl.color;
+  bar.style.width = lvl.w;
+  text.style.color = lvl.color;
+  text.textContent = 'Força da senha: ' + lvl.label;
+}
+
+async function submitNewPassword() {
+  const pw1 = document.getElementById('reset-pw-new').value;
+  const pw2 = document.getElementById('reset-pw-confirm').value;
+  const errEl = document.getElementById('reset-pw-error');
+  const sucEl = document.getElementById('reset-pw-success');
+  const btn   = document.getElementById('reset-pw-btn');
+
+  errEl.classList.remove('show');
+
+  if (!pw1 || pw1.length < 8) {
+    errEl.textContent = 'A senha deve ter no mínimo 8 caracteres.';
+    errEl.classList.add('show'); return;
+  }
+  if (pw1 !== pw2) {
+    errEl.textContent = 'As senhas não coincidem.';
+    errEl.classList.add('show'); return;
+  }
+
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spinner" style="width:18px;height:18px;border-width:2px;margin:0 auto"></div>';
+
+  const { error } = await supa.auth.updateUser({ password: pw1 });
+
+  if (error) {
+    errEl.textContent = 'Erro ao definir senha: ' + error.message;
+    errEl.classList.add('show');
+    btn.disabled = false;
+    btn.innerHTML = '<i class="ti ti-lock-check"></i> Definir senha e entrar';
+    return;
+  }
+
+  sucEl.classList.add('show');
+  btn.style.display = 'none';
+
+  // Clean URL and redirect to app after 2 seconds
+  setTimeout(() => {
+    window.history.replaceState({}, document.title, window.location.pathname);
+    document.getElementById('reset-screen').classList.remove('open');
+    // User is now logged in — load app
+    supa.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        currentUser    = session.user;
+        currentSession = session;
+        loadProfile().then(() => showApp());
+      } else {
+        showLoginBox();
+      }
+    });
+  }, 2000);
+}
+
 </script>
 
 
@@ -3112,6 +3245,49 @@ async function confirmImport() {
     <button class="btn-save" id="import-btn" onclick="confirmImport()" disabled style="opacity:0.5">
       <i class="ti ti-check"></i> <span id="import-btn-label">Importar contatos</span>
     </button>
+  </div>
+</div>
+
+
+<!-- PASSWORD RESET SCREEN -->
+<div class="reset-screen" id="reset-screen">
+  <div style="width:100%;max-width:400px">
+    <div style="text-align:center;margin-bottom:28px">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 42" fill="none" style="width:140px;height:37px">
+        <circle cx="10" cy="21" r="6" fill="white" opacity="0.95"/>
+        <circle cx="28" cy="9" r="4.5" fill="white" opacity="0.8"/>
+        <circle cx="28" cy="33" r="4.5" fill="white" opacity="0.8"/>
+        <line x1="16" y1="17.5" x2="24" y2="11.5" stroke="white" stroke-width="1.4" opacity="0.5"/>
+        <line x1="16" y1="24.5" x2="24" y2="30.5" stroke="white" stroke-width="1.4" opacity="0.5"/>
+        <line x1="32.5" y1="11" x2="32.5" y2="31" stroke="white" stroke-width="1" stroke-dasharray="2.5 2.5" opacity="0.3"/>
+        <text x="44" y="27" font-family="DM Sans,sans-serif" font-size="18" font-weight="500" fill="white" letter-spacing="0.3">Lead Map</text>
+      </svg>
+    </div>
+    <div class="reset-card">
+      <div class="reset-card-title">Criar sua senha</div>
+      <div class="reset-card-sub">Defina uma senha segura para acessar o Lead Map</div>
+      <div class="reset-success" id="reset-pw-success">
+        <i class="ti ti-circle-check" style="font-size:20px;display:block;margin-bottom:6px"></i>
+        Senha definida com sucesso! Redirecionando...
+      </div>
+      <div class="reset-error-msg" id="reset-pw-error"></div>
+      <div class="reset-field">
+        <label>Nova senha</label>
+        <input type="password" id="reset-pw-new" placeholder="Mínimo 8 caracteres" oninput="checkPwStrength(this.value)">
+        <div class="reset-strength" id="pw-strength-bar"></div>
+        <div class="reset-strength-text" id="pw-strength-text"></div>
+      </div>
+      <div class="reset-field">
+        <label>Confirmar senha</label>
+        <input type="password" id="reset-pw-confirm" placeholder="Repita a senha">
+      </div>
+      <button class="reset-btn" id="reset-pw-btn" onclick="submitNewPassword()">
+        <i class="ti ti-lock-check"></i> Definir senha e entrar
+      </button>
+    </div>
+    <div style="text-align:center;margin-top:20px;font-size:11px;color:rgba(255,255,255,0.2)">
+      Lead Map © 2025 · Todos os direitos reservados
+    </div>
   </div>
 </div>
 
