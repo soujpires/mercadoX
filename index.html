@@ -2273,9 +2273,36 @@ async function updateContactNotesDB(id, notas) {
 }
 
 /* ── PROFILE DB ── */
-async 
+async function loadProfile() {
+  if (!currentUser) return;
+  const { data } = await supa.from('profiles').select('*').eq('id', currentUser.id).single();
+  if (data) {
+    profile.nome    = data.nome    || currentUser.email.split('@')[0];
+    profile.role    = data.role    || 'Life Planner';
+    profile.empresa = data.empresa || 'Prudential do Brasil';
+    profile.foto    = data.foto    || null;
+  } else {
+    profile.nome    = currentUser.email.split('@')[0];
+    profile.role    = 'Life Planner';
+    profile.empresa = 'Prudential do Brasil';
+    profile.foto    = null;
+  }
+  persistProfile();
+}
 
-async 
+async function saveProfileDB() {
+  if (!currentUser) return;
+  const nome    = (document.getElementById('prof-nome')?.value    || '').trim() || profile.nome;
+  const role    = (document.getElementById('prof-role')?.value    || '').trim() || profile.role;
+  const empresa = (document.getElementById('prof-empresa')?.value || '').trim() || profile.empresa;
+  const { error } = await supa.from('profiles').upsert({
+    id: currentUser.id, nome, role, empresa, foto: profile.foto
+  });
+  if (error) { console.error('profile save:', error); return; }
+  profile.nome = nome; profile.role = role; profile.empresa = empresa;
+  persistProfile(); applyProfile(); renderProfile();
+  alert('Perfil salvo com sucesso!');
+}
 
 /* ── KANBAN DB ── */
 async function loadKanbanDB() {
