@@ -15,6 +15,7 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
+
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
   --navy:#0D1B40;--navy-mid:#162150;--navy-light:#1e2f6e;
@@ -423,6 +424,528 @@ let kanbanCards = JSON.parse(localStorage.getItem('lm_cards'))  || [];
 let kNextId     = Math.max(0,...kanbanCards.map(c=>parseInt(c.id.replace('kc',''))||0))+1;
 let dragCardId  = null;
 let openCardId  = null;
+
+</style>
+</head>
+<body>
+
+<!-- MOBILE DRAWER -->
+<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
+<nav class="drawer" id="drawer">
+  <div class="drawer-profile">
+    <div class="drawer-av" id="mob-drawer-av"><i class="ti ti-user"></i></div>
+    <div>
+      <div class="drawer-name" id="mob-drawer-name">Ricardo Souza</div>
+      <div class="drawer-role" id="mob-drawer-role">Life Planner</div>
+      <div class="drawer-company">Prudential do Brasil</div>
+    </div>
+  </div>
+  <div class="drawer-nav">
+    <button class="drawer-item active" onclick="navigate('home')"   id="mnav-home"><i class="ti ti-users"></i> Lead Map</button>
+    <button class="drawer-item" onclick="navigate('pipeline')"      id="mnav-pipeline"><i class="ti ti-layout-kanban"></i> Pipeline</button>
+    <button class="drawer-item" onclick="navigate('dashboard')"     id="mnav-dashboard"><i class="ti ti-layout-dashboard"></i> Dashboard</button>
+    <button class="drawer-item" onclick="navigate('reports')"       id="mnav-reports"><i class="ti ti-file-spreadsheet"></i> Relatórios</button>
+    <button class="drawer-item" onclick="navigate('agenda')"        id="mnav-agenda"><i class="ti ti-calendar-week"></i> Agenda</button>
+    <button class="drawer-item" onclick="navigate('profile')"       id="mnav-profile"><i class="ti ti-user-circle"></i> Meu perfil</button>
+  </div>
+  <div style="margin-top:auto;padding:12px 16px;border-top:0.5px solid rgba(255,255,255,0.08);display:flex;flex-direction:column;gap:6px">
+    <button onclick="closeDrawer()" style="display:flex;align-items:center;gap:10px;padding:10px 4px;color:rgba(255,255,255,0.35);font-size:12px;font-family:var(--font);background:none;border:none;cursor:pointer;width:100%;text-align:left">
+      <i class="ti ti-x" style="font-size:15px"></i> Fechar menu
+    </button>
+    <button onclick="doLogout()" style="display:flex;align-items:center;gap:10px;padding:10px 12px;color:#f09595;font-size:13px;font-family:var(--font);background:rgba(226,75,74,0.1);border:0.5px solid rgba(226,75,74,0.25);border-radius:8px;cursor:pointer;width:100%;text-align:left;font-weight:500">
+      <i class="ti ti-logout" style="font-size:16px;color:#f09595"></i> Sair da conta
+    </button>
+  </div>
+</nav>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- SIDEBAR (desktop) -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-logo" onclick="navigate('home')" style="padding:0;gap:0;cursor:pointer;justify-content:center">
+      <!-- icon only — always visible, centered when collapsed -->
+      <svg class="sb-logo-icon-only" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" style="width:32px;height:32px;flex-shrink:0;min-width:32px">
+        <circle cx="8" cy="16" r="4.5" fill="white" opacity="0.95"/>
+        <circle cx="22" cy="7" r="3.5" fill="white" opacity="0.8"/>
+        <circle cx="22" cy="25" r="3.5" fill="white" opacity="0.8"/>
+        <line x1="12" y1="13.5" x2="19" y2="9" stroke="white" stroke-width="1.3" opacity="0.55"/>
+        <line x1="12" y1="18.5" x2="19" y2="23" stroke="white" stroke-width="1.3" opacity="0.55"/>
+        <line x1="25.5" y1="9" x2="25.5" y2="23" stroke="white" stroke-width="1" stroke-dasharray="2 2" opacity="0.35"/>
+      </svg>
+      <!-- full text — only visible when expanded -->
+      <svg class="sb-logo-full" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 32" fill="none" style="width:120px;height:32px;flex-shrink:0;min-width:120px;display:none;margin-left:4px">
+        <text x="0" y="21" font-family="DM Sans,sans-serif" font-size="13" font-weight="500" fill="white" letter-spacing="0.3">Lead Map</text>
+      </svg>
+    </div>
+    <nav class="sb-nav">
+      <button class="sb-item active" onclick="navigate('home')"      id="snav-home"><i class="ti ti-users"></i><span class="sb-label">Lead Map</span></button>
+      <button class="sb-item" onclick="navigate('pipeline')"         id="snav-pipeline"><i class="ti ti-layout-kanban"></i><span class="sb-label">Pipeline</span></button>
+      <button class="sb-item" onclick="navigate('dashboard')"        id="snav-dashboard"><i class="ti ti-layout-dashboard"></i><span class="sb-label">Dashboard</span></button>
+      <button class="sb-item" onclick="navigate('reports')"          id="snav-reports"><i class="ti ti-file-spreadsheet"></i><span class="sb-label">Relatórios</span></button>
+      <button class="sb-item" onclick="navigate('agenda')"           id="snav-agenda"><i class="ti ti-calendar-week"></i><span class="sb-label">Agenda</span></button>
+      <button class="sb-item" onclick="navigate('profile')"          id="snav-profile"><i class="ti ti-user-circle"></i><span class="sb-label">Meu perfil</span></button>
+    </nav>
+    <button onclick="doLogout()" style="display:flex;align-items:center;gap:10px;height:40px;padding:0 14px;color:rgba(226,75,74,0.7);font-size:12px;font-family:var(--font);background:none;border:none;border-top:0.5px solid rgba(255,255,255,0.07);cursor:pointer;width:100%;white-space:nowrap;overflow:hidden">
+      <i class="ti ti-logout" style="font-size:17px;color:rgba(226,75,74,0.8);flex-shrink:0;width:24px;text-align:center"></i>
+      <span class="sb-label">Sair da conta</span>
+    </button>
+    <div class="sb-profile" onclick="navigate('profile')" style="cursor:pointer">
+      <div class="sb-av" id="sb-av"><i class="ti ti-user"></i></div>
+      <div class="sb-profile-info">
+        <div class="sb-profile-name" id="sb-name">Ricardo Souza</div>
+        <div class="sb-profile-role" id="sb-role">Life Planner</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <div class="main">
+
+    <!-- MOBILE TOPBAR -->
+    <header class="mobile-topbar">
+      <button class="tb-btn" onclick="toggleDrawer()" aria-label="Menu"><i class="ti ti-menu-2"></i></button>
+      <div class="tb-logo">Lead Map</div>
+      <div class="tb-avatar" onclick="navigate('profile')" id="mob-tb-av"><i class="ti ti-user"></i></div>
+    </header>
+
+    <!-- HOME -->
+    <section class="page active" id="page-home">
+      <div class="page-scroll">
+        <div class="hero">
+          <div class="hero-inner">
+            <div class="hero-greeting">Bem-vindo de volta</div>
+            <div class="hero-name" id="hero-name">Ricardo Souza</div>
+            <div class="hero-role" id="hero-role">Life Planner · Prudential do Brasil</div>
+            <div class="stats-row">
+              <div class="stat"><div class="stat-num" id="s-total">0</div><div class="stat-bar"></div><div class="stat-lbl">Contatos</div></div>
+              <div class="stat"><div class="stat-num" id="s-ativos">0</div><div class="stat-bar"></div><div class="stat-lbl">Ativos</div></div>
+              <div class="stat"><div class="stat-num" id="s-leads">0</div><div class="stat-bar"></div><div class="stat-lbl">Leads</div></div>
+            </div>
+          </div>
+        </div>
+        <div class="search-bar" style="padding-top:14px">
+          <div class="search-inner">
+            <i class="ti ti-search"></i>
+            <input type="text" id="search-input" placeholder="Buscar por nome, profissão, cidade..." oninput="renderList()">
+            <button class="filter-toggle" id="filter-toggle" onclick="toggleFilter()" aria-label="Filtrar">
+              <i class="ti ti-adjustments-horizontal"></i>
+              <span class="filter-dot hidden" id="filter-dot"></span>
+            </button>
+          </div>
+          <div class="filter-panel hidden" id="filter-panel">
+            <div class="filter-label" style="margin-top:10px">Filtrar por status</div>
+            <div class="filter-chips" id="filter-chips"></div>
+          </div>
+        </div>
+        <div class="list-container">
+          <div class="list-header">
+            <span class="list-title">Seus contatos</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="list-count" id="list-count">0 contatos</span>
+              <button onclick="openImportModal()" style="display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:var(--r-sm);border:0.5px solid var(--border);background:var(--white);color:var(--gray);font-size:11px;cursor:pointer;font-family:var(--font)">
+                <i class="ti ti-file-import" style="font-size:13px"></i> Importar
+              </button>
+            </div>
+          </div>
+          <div id="contact-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DASHBOARD -->
+    <section class="page" id="page-dashboard">
+      <div class="page-scroll">
+        <div class="page-content">
+          <div class="page-title">Dashboard</div>
+          <div id="dash-grid"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- RANKING -->
+    <section class="page" id="page-ranking">
+      <div class="page-scroll">
+        <div class="page-content">
+          <div class="page-title">Ranking de recomendantes</div>
+          <div id="ranking-list"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- REPORTS -->
+    <section class="page" id="page-reports">
+      <div class="page-scroll">
+        <div class="page-content">
+          <div class="page-title">Relatórios</div>
+          <div id="reports-grid"></div>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- PIPELINE -->
+    <section class="page" id="page-pipeline">
+      <div class="page-scroll">
+        <div class="pipeline-wrap">
+          <div class="pipeline-topbar">
+            <div class="pipeline-title"><i class="ti ti-layout-kanban"></i> Pipeline de estudos</div>
+            <button class="btn-novo-estudo" onclick="openEstudoModal()"><i class="ti ti-plus"></i> Novo estudo</button>
+          </div>
+          <div class="kanban-board" id="kanban-board"></div>
+          <div class="kanban-mobile" id="kanban-mobile"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- AGENDA -->
+    <section class="page" id="page-agenda">
+      <div class="page-scroll">
+        <div class="agenda-wrap">
+          <div class="agenda-topbar">
+            <div class="agenda-title"><i class="ti ti-calendar-week"></i> Agenda</div>
+            <div class="agenda-nav-btns">
+              <button class="ag-nav-btn" onclick="agendaNav(-1)"><i class="ti ti-chevron-left"></i></button>
+              <span class="ag-week-label" id="ag-week-label"></span>
+              <button class="ag-nav-btn" onclick="agendaNav(1)"><i class="ti ti-chevron-right"></i></button>
+              <button class="ag-today-btn" onclick="agendaGoToday()">Hoje</button>
+              <button class="ag-add-btn" onclick="openEventModal()"><i class="ti ti-plus"></i> Evento</button>
+            </div>
+          </div>
+          <div class="agenda-grid-wrap">
+            <div class="agenda-day-headers" id="ag-day-headers"></div>
+            <div class="agenda-body-wrap">
+              <div class="agenda-times" id="ag-times"></div>
+              <div class="agenda-cols" id="ag-cols"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PROFILE -->
+    <section class="page" id="page-profile">
+      <div class="page-scroll">
+        <div class="page-content">
+          <div class="page-title">Meu perfil</div>
+          <div id="profile-content"></div>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /main -->
+</div><!-- /layout -->
+
+<!-- FAB -->
+<button class="fab" onclick="openModal()" aria-label="Novo contato"><i class="ti ti-plus"></i></button>
+
+
+<!-- ESTUDO MODAL -->
+<div class="modal-overlay" id="estudo-overlay" onclick="closeEstudoModal()"></div>
+<div class="modal" id="estudo-modal">
+  <div class="modal-header">
+    <h2 class="modal-title" id="estudo-modal-title">Novo estudo</h2>
+    <button class="modal-close" onclick="closeEstudoModal()"><i class="ti ti-x"></i></button>
+  </div>
+  <div class="modal-body">
+    <div class="form-section-label">Cliente</div>
+    <div class="form-grid">
+      <div class="fg full rec-wrap">
+        <label>Nome (buscar no Lead Map ou digitar novo)</label>
+        <input type="text" id="es-nome" placeholder="Digite para buscar..." autocomplete="off" oninput="searchEstudoRec(this.value)">
+        <div class="rec-dropdown" id="es-rec-dropdown" style="display:none"></div>
+      </div>
+    </div>
+    <div class="form-section-label">Produto</div>
+    <div class="form-grid">
+      <div class="fg full">
+        <label>Produto</label>
+        <input type="text" id="es-produto" placeholder="Nome do produto / Previdência">
+      </div>
+      <div class="fg full">
+        <label>Contribuição mensal</label>
+        <input type="text" id="es-valor" placeholder="Ex: R$ 500/mês">
+      </div>
+    </div>
+    <div class="form-section-label">Pipeline</div>
+    <div class="form-grid">
+      <div class="fg full">
+        <label>Coluna inicial</label>
+        <select id="es-coluna"></select>
+      </div>
+      <div class="fg full">
+        <label>Observações iniciais</label>
+        <textarea id="es-obs" placeholder="Notas sobre este estudo..."></textarea>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn-cancel" onclick="closeEstudoModal()">Cancelar</button>
+    <button class="btn-save" onclick="saveEstudo()"><i class="ti ti-check"></i> Salvar estudo</button>
+  </div>
+</div>
+
+<!-- CARD DETAIL PANEL -->
+<div class="card-panel-overlay" id="card-panel-overlay" onclick="closeCardPanel()"></div>
+<div class="card-detail-panel" id="card-detail-panel">
+  <div class="cdp-header">
+    <div>
+      <div class="cdp-name" id="cdp-name"></div>
+      <div class="cdp-sub" id="cdp-sub"></div>
+    </div>
+    <button class="modal-close" onclick="closeCardPanel()"><i class="ti ti-x"></i></button>
+  </div>
+  <div class="cdp-body">
+    <div class="cdp-left">
+      <div class="cdp-fields">
+        <div class="cdp-field"><span>Produto</span><strong id="cdp-produto"></strong></div>
+        <div class="cdp-field"><span>Contribuição</span><strong id="cdp-valor"></strong></div>
+        <div class="cdp-field"><span>Coluna</span><strong id="cdp-coluna"></strong></div>
+      </div>
+      <div class="form-section-label" style="margin-top:16px">Anotações</div>
+      <textarea class="cdp-textarea" id="cdp-obs" placeholder="Adicionar anotação..."></textarea>
+      <button class="cdp-save-btn" onclick="saveCardObs()"><i class="ti ti-check"></i> Salvar anotação</button>
+      <div style="margin-top:12px;display:flex;gap:8px">
+        <button class="cdp-move-btn" onclick="moveCardLeft()"><i class="ti ti-arrow-left"></i> Voltar</button>
+        <button class="cdp-move-btn pri" onclick="moveCardRight()">Avançar <i class="ti ti-arrow-right"></i></button>
+        <button class="cdp-del-btn" onclick="deleteCard()"><i class="ti ti-trash"></i></button>
+      </div>
+    </div>
+    <div class="cdp-right">
+      <div class="cdp-fu-header">
+        <span>Follow-up</span>
+        <button class="fu-add-btn" onclick="showFuInput()"><i class="ti ti-plus"></i> Novo</button>
+      </div>
+      <div class="fu-input-wrap" id="fu-input-wrap" style="display:none">
+        <textarea class="fu-textarea" id="fu-new-text" placeholder="Descrição do follow-up..."></textarea>
+        <input type="datetime-local" id="fu-new-date" class="fu-date-input">
+        <button class="fu-save-btn" onclick="saveFu()">Salvar</button>
+      </div>
+      <div class="fu-timeline" id="fu-timeline"></div>
+    </div>
+  </div>
+</div>
+
+<!-- EVENT MODAL -->
+<div class="modal-overlay" id="event-overlay" onclick="closeEventModal()"></div>
+<div class="modal" id="event-modal">
+  <div class="modal-header">
+    <h2 class="modal-title">Novo evento</h2>
+    <button class="modal-close" onclick="closeEventModal()"><i class="ti ti-x"></i></button>
+  </div>
+  <div class="modal-body">
+    <div class="form-grid">
+      <div class="fg full"><label>Título *</label><input type="text" id="ev-title" placeholder="Ex: Reunião com Carlos"></div>
+      <div class="fg"><label>Data</label><input type="date" id="ev-date"></div>
+      <div class="fg"><label>Horário</label><input type="time" id="ev-time"></div>
+      <div class="fg full"><label>Duração</label>
+        <select id="ev-dur">
+          <option value="30">30 minutos</option>
+          <option value="60" selected>1 hora</option>
+          <option value="90">1h30</option>
+          <option value="120">2 horas</option>
+        </select>
+      </div>
+      <div class="fg full"><label>Tipo</label>
+        <select id="ev-type">
+          <option value="reunion">Reunião</option>
+          <option value="followup">Follow-up</option>
+          <option value="apresentacao">Apresentação</option>
+          <option value="ligacao">Ligação</option>
+          <option value="outro">Outro</option>
+        </select>
+      </div>
+      <div class="fg full"><label>Notas</label><textarea id="ev-notes" placeholder="Detalhes do evento..."></textarea></div>
+      <div class="fg full">
+        <label>Lembrete</label>
+        <select id="ev-reminder">
+          <option value="">Sem lembrete</option>
+          <option value="5">5 minutos antes</option>
+          <option value="15">15 minutos antes</option>
+          <option value="30" selected>30 minutos antes</option>
+          <option value="60">1 hora antes</option>
+          <option value="custom">Personalizado</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn-cancel" onclick="closeEventModal()">Cancelar</button>
+    <button class="btn-save" onclick="saveEvent()"><i class="ti ti-check"></i> Salvar evento</button>
+  </div>
+</div>
+
+
+<!-- MOBILE FAB -->
+<button class="mobile-fab" id="mobile-fab" onclick="isMobile()?openStepModal():openModal()" aria-label="Novo contato">
+  <i class="ti ti-plus"></i>
+</button>
+
+<!-- PWA INSTALL BANNER -->
+<div class="pwa-banner" id="pwa-banner">
+  <div class="pwa-banner-icon">
+    <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMAAAADACAIAAADdvvtQAAAIHElEQVR42u2dzWsUZxzH8w/soedKwYOHXEJy8BbBUm8ecgjtJQZPRTBYaEBECXgJoSIS2ot7sVjooUUhAS9CN0SIEAiEhBDRILZIW2xMTdU0Jtm8TL86NOhmk52XZ55n5tnPw5dhnMw+s6wfnuf38jy/aSl9fByhxGrhJ0AAhAAIARACIIQACAEQAiAEQAgBEAIgBEAIgBACIARACIAQACEEQAiAEAAhAEIAhBAAIQBCAIQACCEAQgBUdB1u62rv7Dn66WkddQ5AqLFOdPUNDJZvjVRm5hYWl5Y3qtUgCHTUua7ouv6qewAIfaBDrSf7Lw2PT0wH0Zru1P36FACh4+fOX9XoEsRv+pQ+C0DNK9k3mpWCdE09qB8Aajp1916Yf/gkMNHUj3oDoCZS75nLsosDc029qU8Aapaxxyw9uwwVaxwCoIR2j6mZq+5cViB7CICSKL3V3NCmBiCfPfYg+1YU3x6AYkcLk8V7EsSHChFjBKB46r80HNhqehYA+abomYr0Tc8CIN+ypIHdlv+cKwDF0MBg2TJAeiIA4b377M8DUAzZ8b9qfDEA8mdtYRa5i4aZjZyvYwSgqGrv7AnXFtpseqKeC0Ce5L8CFy3neTEAYgQCIGwgAMILwwvzXNOzjxYePyUOBEBJ0Pl39Y30emWVSDQAxdN35Z+r1er29raOm5ub5MIAKB49W1tbO/83YaR/ko0HoKjStLXzXrMMEOuBiq2/Fl/s7GkCaPH5sh3/ixWJxZ68NN7U0KMrus6aaACKZ/rsNo1J7MoAoNimT9h0kX1hABQp6lPX9NGwxM5UAEoyeYWmz96b2RsPQJEmr13TZ6+ozgFADfz2arXacJ0Q9YFQfb99r+lT2n+/MxXKMH1iTF6lerueqZGI6VPfb4+7/3C3Sqs60cAmXHTUOVVam9dvT6Zvyz/9+ez565VVHXXu36/XwuQV3W9PoG+Gf3j6+7O19XUddQ5Aze63A1AxAProk8+OdHR3HDsl51ZHnetKTvx2AMopQGLlbP+V6zduV+5NLTx+uvzPq+q7FYA66lxXdF1/1T1GQiYp/fZYAGmcA6CspNFF3uzdyuSbtfWIDrDu1P36lD7r0G+PCNCDh78+X1rWEYAMq/XoF0PXbj757Y/EAVx9Vj2oH7d++wH6/PTFW6NjokdHnQOQMWn8MLVLRv3EWv2531JDs5NXDUNe0uMGoLfJo9Ex84uwRsei2EZZ++37MeSrG2sbIP2UDzJbiqWeG/5XycmyYPrstYQAyIC+/GpI/lSmi0HVv54Sa/LKwvSpoef+5KyvDLXYpCe6n5Wm6Sl1GbLjt9elRz68rwy1WJu5sh57asahmrlsP799evZR1sOP6Hn5aoU4UCqrOTu75wB76H2b2prfTiTavLLwuSL6ZU78dgAyHO8J3DU93YnfDkDGYs32a+rUxBjD2hqW/XZyYWY0dO1m4Lpp+KkByILpQy7MTJY0TZ7LVNt+1yybPuTCCm/91AxC4USmk6z9dnJhxnS3MpkTgNbXN8IaddZMH3JhBmI/duLOUdrm5tbS3y81c9mcvMiFpdLZ/itBntov41OufmJyYUl0/cbtXAGk7+OQHnJhsVW5N5UrgPR9XAFELizJngq38cO6EcUs9nUQic4EoCMd3TZz7xHz84lX4AOQbYA6jp2qWq/JfXDT99G3AqBiAOTq1VoHNycFeMiFMQKRC8MGcmcDkQvDCyMXRhzIXRyIXBiRaHJh5MKC4OWrFXJhZOMTtp2dndU3a06Wc5AL82E9UPi+wXBBmeUVHeTCfFiR+P6SVmv7MYhEe7ImOoTG4aJ6ACr2roy9e3rsb+sBoALvC/v+xzvONxaSCyvwzlTnW5vJhRV+b7zD4grkwjypzuGqvAu5MGM/otv6QCVHBabIhRmT8wplJUcl7siFmWTIbY3Ekosim+TCDA/mbqu0Wi4XRC4sE5vaYZ1oy149ubAM40OuKtXb9OqJRGcbp3b1rgxrXj0AZS4nb+sp2X3dEwBZso1svi/MjldPLsyN7Lyx0IJXTy7Mc2Xt1ZML819Ze/XkwvxXdl794bau9s6ery8O66hzAGqiiSyxMXSiq29gsHxrpDIzt7C4tLxRrcoV0FHnuqLr+qvuASDfGErp1R9qPdl/aXh8YjpiMEJ36n59CoB8NoYivkb+3PmrGl0SxEL1KX0WgHw2hg6eyN6m9kYqaRN5IxUn5YsAyLFX3917Yd7Q4gL1o94AqPCann0U0avvPXNZdrHBBQXqTX0CUFN49RotzNKzy1CxxiEASuLVy16Zz2xZ3PyH2wEAyEOvPr3V3NCmBiBvvXp53Ra2BhTFtwegGMZQWCZmdXXNAkAzcwuFiDECUAxjSACtb2xY3pcNQD4wFI49ajq3BtD4xDQAeRIZCl94+GLZdvHr/OdcASjqOCSb+v7krGWABgbLAOSP7Nc6yr8/D0AxlCzfntIXAyBPdLitK4vcRcPMRs7XMQJQVLV39oRrC202PVHPBSAf5OolaDnPiwEQIxAAYQMBEF4YXpj/ynoVB3EgzzUwWCYSDUDJdaKrj1wYAKVS9H2DZONRHdl8cwPrgTzUodaTdnwxViR6K9ZEA1De/Xl2ZfifF2NfGAClEjtTASit2BsPQAbGIapzwEFae4j6QMiAb0+FMpQ2xkiNRGQm50qVVmRsHWN7Z4/sG+pEIwRACIAQACEAQgiAEAAhAEIAhAAIIQBCAIQACAEQQgCEAAgBEAIghAAIARACIARACAEQAiAEQAiAEAAhlFj/AVrtAE7CthQUAAAAAElFTkSuQmCC" alt="Lead Map">
+  </div>
+  <div class="pwa-banner-text">
+    <strong>Lead Map</strong>
+    Instale o app na sua tela inicial
+  </div>
+  <button class="pwa-banner-btn" id="pwa-install-btn">Instalar</button>
+  <button class="pwa-banner-close" onclick="closePwaBanner()"><i class="ti ti-x"></i></button>
+</div>
+
+
+<!-- STEP CONTACT MODAL -->
+<div class="step-modal-overlay" id="step-overlay" onclick="closeStepModal()"></div>
+<div class="step-modal" id="step-modal">
+  <div class="step-handle"></div>
+  <div class="step-progress">
+    <div class="step-bar active" id="sbar-1"></div>
+    <div class="step-bar" id="sbar-2"></div>
+    <div class="step-bar" id="sbar-3"></div>
+  </div>
+  <div class="step-header">
+    <div class="step-step-label" id="step-label">Passo 1 de 3 · Identificação</div>
+    <div class="step-step-title" id="step-title">Quem é o contato?</div>
+  </div>
+
+  <!-- STEP 1 — Identificação -->
+  <div class="step-body" id="step-1-body">
+    <div class="step-fg">
+      <label>Nome completo *</label>
+      <input type="text" id="sf-nome" placeholder="Ex: João Silva" autocomplete="off">
+    </div>
+    <div class="step-fg">
+      <label>Gênero</label>
+      <div class="step-gender">
+        <button class="step-gender-opt active" id="sg-m" onclick="selStepGender('m')"><i class="ti ti-user"></i> Masculino</button>
+        <button class="step-gender-opt" id="sg-f" onclick="selStepGender('f')"><i class="ti ti-user"></i> Feminino</button>
+      </div>
+    </div>
+    <div class="step-fg">
+      <label>Status</label>
+      <select id="sf-status"></select>
+    </div>
+  </div>
+
+  <!-- STEP 2 — Contato -->
+  <div class="step-body" id="step-2-body" style="display:none">
+    <div class="step-fg">
+      <label>Telefone</label>
+      <input type="tel" id="sf-tel" placeholder="(00) 00000-0000">
+    </div>
+    <div class="step-fg">
+      <label>Profissão</label>
+      <input type="text" id="sf-prof" placeholder="Médico, Advogado...">
+    </div>
+    <div class="step-fg">
+      <label>Empresa / Cargo</label>
+      <input type="text" id="sf-empresa" placeholder="Hospital X — Diretor">
+    </div>
+    <div class="step-fg-row">
+      <div class="step-fg">
+        <label>Cidade</label>
+        <input type="text" id="sf-cidade" placeholder="Goiânia">
+      </div>
+      <div class="step-fg">
+        <label>Estado</label>
+        <input type="text" id="sf-es" placeholder="GO" maxlength="2">
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3 — Origem -->
+  <div class="step-body" id="step-3-body" style="display:none">
+    <div class="step-fg step-rec-wrap">
+      <label>Recomendante</label>
+      <input type="text" id="sf-rec" placeholder="Digite para buscar..." autocomplete="off" oninput="searchStepRec(this.value)">
+      <div class="step-rec-dropdown" id="sf-rec-dropdown"></div>
+    </div>
+    <div class="step-fg">
+      <label>Relação / Referência</label>
+      <input type="text" id="sf-ref" placeholder="amigo, colega, familiar...">
+    </div>
+    <div class="step-fg">
+      <label>Filho(s)</label>
+      <input type="text" id="sf-filhos" placeholder="Ex: Lucas, Pedro, Maria">
+    </div>
+    <div class="step-fg">
+      <label>Observações</label>
+      <textarea id="sf-obs" placeholder="Notas sobre este contato..." style="min-height:80px;resize:none"></textarea>
+    </div>
+  </div>
+
+  <div class="step-footer">
+    <button class="step-btn-back" id="step-btn-back" onclick="stepBack()" style="display:none">
+      <i class="ti ti-arrow-left"></i> Voltar
+    </button>
+    <button class="step-btn-next" id="step-btn-next" onclick="stepNext()">
+      Próximo <i class="ti ti-arrow-right"></i>
+    </button>
+  </div>
+</div>
+
+<!-- STATUS SHEET -->
+<div class="sheet-overlay" id="status-overlay" onclick="closeStatusSheet()"></div>
+<div class="bottom-sheet" id="status-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-title" id="status-sheet-title">Alterar status</div>
+  <div class="sheet-options" id="status-options"></div>
+  <button class="sheet-cancel" onclick="closeStatusSheet()">Cancelar</button>
+</div>
+
+<!-- CONTACT MODAL -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModal()"></div>
+<div class="modal" id="contact-modal">
+  <div class="modal-header">
+    <h2 class="modal-title" id="modal-title">Novo contato</h2>
+    <button class="modal-close" onclick="closeModal()"><i class="ti ti-x"></i></button>
+  </div>
+  <div class="modal-body">
+    <div class="form-section-label">Identificação</div>
+    <div class="form-grid">
+      <div class="fg full"><label>Nome completo *</label><input type="text" id="f-nome" placeholder="Ex: João Silva" autocomplete="off"></div>
+      <div class="fg full"><label>Gênero</label>
+        <div class="gender-row">
+          <button class="gender-opt active" id="g-m" onclick="selGender('m')"><i class="ti ti-user"></i> Masculino</button>
+          <button class="gender-opt" id="g-f" onclick="selGender('f')"><i class="ti ti-user"></i> Feminino</button>
+        </div>
+      </div>
+    </div>
+    <div class="form-section-label">Origem da indicação</div>
+    <div class="form-grid">
+      <div class="fg full rec-wrap">
+        <label>Recomendante</label>
+        <input type="text" id="f-rec" placeholder="Digite para buscar..." autocomplete="off" oninput="searchRec(this.value)" onfocus="searchRec(this.value)">
+        <div class="rec-dropdown" id="rec-dropdown"></div>
+      </div>
+      <div class="fg full"><label>Relação / Referência</label><input type="text" id="f-ref" placeholder="amigo, colega, familiar..."></div>
+    </div>
+    <div class="form-section-label">Contato</div>
+    <div class="form-grid">
+      <div class="fg"><label>Telefone</label><input type="tel" id="f-tel" placeholder="(00) 00000-0000"></div>
+      <div class="fg"><label>Profissão</label><input type="text" id="f-prof" placeholder="Médico, Advogado..."></div>
+      <div class="fg full"><label>Empresa / Cargo</label><input type="text" id="f-empresa" placeholder="Hospital X — Diretor Clínico"></div>
+      <div class="fg"><label>Cidade</label><input type="text" id="f-cidade" placeholder="Goiânia"></div>
+      <div class="fg"><label>Estado</label><input type="text" id="f-es" placeholder="GO" maxlength="2"></div>
+      <div class="fg full"><label>Endereço</label><input type="text" id="f-end" placeholder="Rua, número, bairro"></div>
+    </div>
+    <div class="form-section-label">Informações adicionais</div>
+    <div class="form-grid">
+      <div class="fg full"><label>Filho(s)</label><input type="text" id="f-filhos" placeholder="Ex: Lucas, Pedro, Maria"><span class="fg-hint">Separe os nomes por vírgula</span></div>
+      <div class="fg"><label>Semana</label><input type="number" id="f-semana" placeholder="1" min="1"></div>
+      <div class="fg"><label>Status</label><select id="f-status"></select></div>
+      <div class="fg full"><label>Observações</label><textarea id="f-obs" placeholder="Notas sobre este contato..."></textarea></div>
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+    <button class="btn-save" onclick="saveContact()"><i class="ti ti-check"></i> Salvar contato</button>
+  </div>
+</div>
+
+<script>
+/* ── KANBAN PIPELINE ── */
 
 function persistKanban(){
   localStorage.setItem('lm_kcols',  JSON.stringify(kanbanCols));
@@ -1034,526 +1557,8 @@ function closeEventModal(){ document.getElementById('event-overlay').classList.r
 .col-total{font-size:11px;color:var(--gray);padding:0 12px 8px;border-bottom:0.5px solid var(--border)}
 .col-total strong{color:#27500A;font-weight:500}
 
-</style>
-</head>
-<body>
-
-<!-- MOBILE DRAWER -->
-<div class="drawer-overlay" id="drawer-overlay" onclick="closeDrawer()"></div>
-<nav class="drawer" id="drawer">
-  <div class="drawer-profile">
-    <div class="drawer-av" id="mob-drawer-av"><i class="ti ti-user"></i></div>
-    <div>
-      <div class="drawer-name" id="mob-drawer-name">Ricardo Souza</div>
-      <div class="drawer-role" id="mob-drawer-role">Life Planner</div>
-      <div class="drawer-company">Prudential do Brasil</div>
-    </div>
-  </div>
-  <div class="drawer-nav">
-    <button class="drawer-item active" onclick="navigate('home')"   id="mnav-home"><i class="ti ti-users"></i> Lead Map</button>
-    <button class="drawer-item" onclick="navigate('pipeline')"      id="mnav-pipeline"><i class="ti ti-layout-kanban"></i> Pipeline</button>
-    <button class="drawer-item" onclick="navigate('dashboard')"     id="mnav-dashboard"><i class="ti ti-layout-dashboard"></i> Dashboard</button>
-    <button class="drawer-item" onclick="navigate('reports')"       id="mnav-reports"><i class="ti ti-file-spreadsheet"></i> Relatórios</button>
-    <button class="drawer-item" onclick="navigate('agenda')"        id="mnav-agenda"><i class="ti ti-calendar-week"></i> Agenda</button>
-    <button class="drawer-item" onclick="navigate('profile')"       id="mnav-profile"><i class="ti ti-user-circle"></i> Meu perfil</button>
-  </div>
-  <div style="margin-top:auto;padding:12px 16px;border-top:0.5px solid rgba(255,255,255,0.08);display:flex;flex-direction:column;gap:6px">
-    <button onclick="closeDrawer()" style="display:flex;align-items:center;gap:10px;padding:10px 4px;color:rgba(255,255,255,0.35);font-size:12px;font-family:var(--font);background:none;border:none;cursor:pointer;width:100%;text-align:left">
-      <i class="ti ti-x" style="font-size:15px"></i> Fechar menu
-    </button>
-    <button onclick="doLogout()" style="display:flex;align-items:center;gap:10px;padding:10px 12px;color:#f09595;font-size:13px;font-family:var(--font);background:rgba(226,75,74,0.1);border:0.5px solid rgba(226,75,74,0.25);border-radius:8px;cursor:pointer;width:100%;text-align:left;font-weight:500">
-      <i class="ti ti-logout" style="font-size:16px;color:#f09595"></i> Sair da conta
-    </button>
-  </div>
-</nav>
-
-<!-- LAYOUT -->
-<div class="layout">
-
-  <!-- SIDEBAR (desktop) -->
-  <aside class="sidebar" id="sidebar">
-    <div class="sb-logo" onclick="navigate('home')" style="padding:0;gap:0;cursor:pointer;justify-content:center">
-      <!-- icon only — always visible, centered when collapsed -->
-      <svg class="sb-logo-icon-only" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" style="width:32px;height:32px;flex-shrink:0;min-width:32px">
-        <circle cx="8" cy="16" r="4.5" fill="white" opacity="0.95"/>
-        <circle cx="22" cy="7" r="3.5" fill="white" opacity="0.8"/>
-        <circle cx="22" cy="25" r="3.5" fill="white" opacity="0.8"/>
-        <line x1="12" y1="13.5" x2="19" y2="9" stroke="white" stroke-width="1.3" opacity="0.55"/>
-        <line x1="12" y1="18.5" x2="19" y2="23" stroke="white" stroke-width="1.3" opacity="0.55"/>
-        <line x1="25.5" y1="9" x2="25.5" y2="23" stroke="white" stroke-width="1" stroke-dasharray="2 2" opacity="0.35"/>
-      </svg>
-      <!-- full text — only visible when expanded -->
-      <svg class="sb-logo-full" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 32" fill="none" style="width:120px;height:32px;flex-shrink:0;min-width:120px;display:none;margin-left:4px">
-        <text x="0" y="21" font-family="DM Sans,sans-serif" font-size="13" font-weight="500" fill="white" letter-spacing="0.3">Lead Map</text>
-      </svg>
-    </div>
-    <nav class="sb-nav">
-      <button class="sb-item active" onclick="navigate('home')"      id="snav-home"><i class="ti ti-users"></i><span class="sb-label">Lead Map</span></button>
-      <button class="sb-item" onclick="navigate('pipeline')"         id="snav-pipeline"><i class="ti ti-layout-kanban"></i><span class="sb-label">Pipeline</span></button>
-      <button class="sb-item" onclick="navigate('dashboard')"        id="snav-dashboard"><i class="ti ti-layout-dashboard"></i><span class="sb-label">Dashboard</span></button>
-      <button class="sb-item" onclick="navigate('reports')"          id="snav-reports"><i class="ti ti-file-spreadsheet"></i><span class="sb-label">Relatórios</span></button>
-      <button class="sb-item" onclick="navigate('agenda')"           id="snav-agenda"><i class="ti ti-calendar-week"></i><span class="sb-label">Agenda</span></button>
-      <button class="sb-item" onclick="navigate('profile')"          id="snav-profile"><i class="ti ti-user-circle"></i><span class="sb-label">Meu perfil</span></button>
-    </nav>
-    <button onclick="doLogout()" style="display:flex;align-items:center;gap:10px;height:40px;padding:0 14px;color:rgba(226,75,74,0.7);font-size:12px;font-family:var(--font);background:none;border:none;border-top:0.5px solid rgba(255,255,255,0.07);cursor:pointer;width:100%;white-space:nowrap;overflow:hidden">
-      <i class="ti ti-logout" style="font-size:17px;color:rgba(226,75,74,0.8);flex-shrink:0;width:24px;text-align:center"></i>
-      <span class="sb-label">Sair da conta</span>
-    </button>
-    <div class="sb-profile" onclick="navigate('profile')" style="cursor:pointer">
-      <div class="sb-av" id="sb-av"><i class="ti ti-user"></i></div>
-      <div class="sb-profile-info">
-        <div class="sb-profile-name" id="sb-name">Ricardo Souza</div>
-        <div class="sb-profile-role" id="sb-role">Life Planner</div>
-      </div>
-    </div>
-  </aside>
-
-  <!-- MAIN -->
-  <div class="main">
-
-    <!-- MOBILE TOPBAR -->
-    <header class="mobile-topbar">
-      <button class="tb-btn" onclick="toggleDrawer()" aria-label="Menu"><i class="ti ti-menu-2"></i></button>
-      <div class="tb-logo">Lead Map</div>
-      <div class="tb-avatar" onclick="navigate('profile')" id="mob-tb-av"><i class="ti ti-user"></i></div>
-    </header>
-
-    <!-- HOME -->
-    <section class="page active" id="page-home">
-      <div class="page-scroll">
-        <div class="hero">
-          <div class="hero-inner">
-            <div class="hero-greeting">Bem-vindo de volta</div>
-            <div class="hero-name" id="hero-name">Ricardo Souza</div>
-            <div class="hero-role" id="hero-role">Life Planner · Prudential do Brasil</div>
-            <div class="stats-row">
-              <div class="stat"><div class="stat-num" id="s-total">0</div><div class="stat-bar"></div><div class="stat-lbl">Contatos</div></div>
-              <div class="stat"><div class="stat-num" id="s-ativos">0</div><div class="stat-bar"></div><div class="stat-lbl">Ativos</div></div>
-              <div class="stat"><div class="stat-num" id="s-leads">0</div><div class="stat-bar"></div><div class="stat-lbl">Leads</div></div>
-            </div>
-          </div>
-        </div>
-        <div class="search-bar" style="padding-top:14px">
-          <div class="search-inner">
-            <i class="ti ti-search"></i>
-            <input type="text" id="search-input" placeholder="Buscar por nome, profissão, cidade..." oninput="renderList()">
-            <button class="filter-toggle" id="filter-toggle" onclick="toggleFilter()" aria-label="Filtrar">
-              <i class="ti ti-adjustments-horizontal"></i>
-              <span class="filter-dot hidden" id="filter-dot"></span>
-            </button>
-          </div>
-          <div class="filter-panel hidden" id="filter-panel">
-            <div class="filter-label" style="margin-top:10px">Filtrar por status</div>
-            <div class="filter-chips" id="filter-chips"></div>
-          </div>
-        </div>
-        <div class="list-container">
-          <div class="list-header">
-            <span class="list-title">Seus contatos</span>
-            <div style="display:flex;align-items:center;gap:8px">
-              <span class="list-count" id="list-count">0 contatos</span>
-              <button onclick="openImportModal()" style="display:flex;align-items:center;gap:5px;padding:5px 11px;border-radius:var(--r-sm);border:0.5px solid var(--border);background:var(--white);color:var(--gray);font-size:11px;cursor:pointer;font-family:var(--font)">
-                <i class="ti ti-file-import" style="font-size:13px"></i> Importar
-              </button>
-            </div>
-          </div>
-          <div id="contact-list"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- DASHBOARD -->
-    <section class="page" id="page-dashboard">
-      <div class="page-scroll">
-        <div class="page-content">
-          <div class="page-title">Dashboard</div>
-          <div id="dash-grid"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- RANKING -->
-    <section class="page" id="page-ranking">
-      <div class="page-scroll">
-        <div class="page-content">
-          <div class="page-title">Ranking de recomendantes</div>
-          <div id="ranking-list"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- REPORTS -->
-    <section class="page" id="page-reports">
-      <div class="page-scroll">
-        <div class="page-content">
-          <div class="page-title">Relatórios</div>
-          <div id="reports-grid"></div>
-        </div>
-      </div>
-    </section>
 
 
-    <!-- PIPELINE -->
-    <section class="page" id="page-pipeline">
-      <div class="page-scroll">
-        <div class="pipeline-wrap">
-          <div class="pipeline-topbar">
-            <div class="pipeline-title"><i class="ti ti-layout-kanban"></i> Pipeline de estudos</div>
-            <button class="btn-novo-estudo" onclick="openEstudoModal()"><i class="ti ti-plus"></i> Novo estudo</button>
-          </div>
-          <div class="kanban-board" id="kanban-board"></div>
-          <div class="kanban-mobile" id="kanban-mobile"></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- AGENDA -->
-    <section class="page" id="page-agenda">
-      <div class="page-scroll">
-        <div class="agenda-wrap">
-          <div class="agenda-topbar">
-            <div class="agenda-title"><i class="ti ti-calendar-week"></i> Agenda</div>
-            <div class="agenda-nav-btns">
-              <button class="ag-nav-btn" onclick="agendaNav(-1)"><i class="ti ti-chevron-left"></i></button>
-              <span class="ag-week-label" id="ag-week-label"></span>
-              <button class="ag-nav-btn" onclick="agendaNav(1)"><i class="ti ti-chevron-right"></i></button>
-              <button class="ag-today-btn" onclick="agendaGoToday()">Hoje</button>
-              <button class="ag-add-btn" onclick="openEventModal()"><i class="ti ti-plus"></i> Evento</button>
-            </div>
-          </div>
-          <div class="agenda-grid-wrap">
-            <div class="agenda-day-headers" id="ag-day-headers"></div>
-            <div class="agenda-body-wrap">
-              <div class="agenda-times" id="ag-times"></div>
-              <div class="agenda-cols" id="ag-cols"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- PROFILE -->
-    <section class="page" id="page-profile">
-      <div class="page-scroll">
-        <div class="page-content">
-          <div class="page-title">Meu perfil</div>
-          <div id="profile-content"></div>
-        </div>
-      </div>
-    </section>
-
-  </div><!-- /main -->
-</div><!-- /layout -->
-
-<!-- FAB -->
-<button class="fab" onclick="openModal()" aria-label="Novo contato"><i class="ti ti-plus"></i></button>
-
-
-<!-- ESTUDO MODAL -->
-<div class="modal-overlay" id="estudo-overlay" onclick="closeEstudoModal()"></div>
-<div class="modal" id="estudo-modal">
-  <div class="modal-header">
-    <h2 class="modal-title" id="estudo-modal-title">Novo estudo</h2>
-    <button class="modal-close" onclick="closeEstudoModal()"><i class="ti ti-x"></i></button>
-  </div>
-  <div class="modal-body">
-    <div class="form-section-label">Cliente</div>
-    <div class="form-grid">
-      <div class="fg full rec-wrap">
-        <label>Nome (buscar no Lead Map ou digitar novo)</label>
-        <input type="text" id="es-nome" placeholder="Digite para buscar..." autocomplete="off" oninput="searchEstudoRec(this.value)">
-        <div class="rec-dropdown" id="es-rec-dropdown" style="display:none"></div>
-      </div>
-    </div>
-    <div class="form-section-label">Produto</div>
-    <div class="form-grid">
-      <div class="fg full">
-        <label>Produto</label>
-        <input type="text" id="es-produto" placeholder="Nome do produto / Previdência">
-      </div>
-      <div class="fg full">
-        <label>Contribuição mensal</label>
-        <input type="text" id="es-valor" placeholder="Ex: R$ 500/mês">
-      </div>
-    </div>
-    <div class="form-section-label">Pipeline</div>
-    <div class="form-grid">
-      <div class="fg full">
-        <label>Coluna inicial</label>
-        <select id="es-coluna"></select>
-      </div>
-      <div class="fg full">
-        <label>Observações iniciais</label>
-        <textarea id="es-obs" placeholder="Notas sobre este estudo..."></textarea>
-      </div>
-    </div>
-  </div>
-  <div class="modal-footer">
-    <button class="btn-cancel" onclick="closeEstudoModal()">Cancelar</button>
-    <button class="btn-save" onclick="saveEstudo()"><i class="ti ti-check"></i> Salvar estudo</button>
-  </div>
-</div>
-
-<!-- CARD DETAIL PANEL -->
-<div class="card-panel-overlay" id="card-panel-overlay" onclick="closeCardPanel()"></div>
-<div class="card-detail-panel" id="card-detail-panel">
-  <div class="cdp-header">
-    <div>
-      <div class="cdp-name" id="cdp-name"></div>
-      <div class="cdp-sub" id="cdp-sub"></div>
-    </div>
-    <button class="modal-close" onclick="closeCardPanel()"><i class="ti ti-x"></i></button>
-  </div>
-  <div class="cdp-body">
-    <div class="cdp-left">
-      <div class="cdp-fields">
-        <div class="cdp-field"><span>Produto</span><strong id="cdp-produto"></strong></div>
-        <div class="cdp-field"><span>Contribuição</span><strong id="cdp-valor"></strong></div>
-        <div class="cdp-field"><span>Coluna</span><strong id="cdp-coluna"></strong></div>
-      </div>
-      <div class="form-section-label" style="margin-top:16px">Anotações</div>
-      <textarea class="cdp-textarea" id="cdp-obs" placeholder="Adicionar anotação..."></textarea>
-      <button class="cdp-save-btn" onclick="saveCardObs()"><i class="ti ti-check"></i> Salvar anotação</button>
-      <div style="margin-top:12px;display:flex;gap:8px">
-        <button class="cdp-move-btn" onclick="moveCardLeft()"><i class="ti ti-arrow-left"></i> Voltar</button>
-        <button class="cdp-move-btn pri" onclick="moveCardRight()">Avançar <i class="ti ti-arrow-right"></i></button>
-        <button class="cdp-del-btn" onclick="deleteCard()"><i class="ti ti-trash"></i></button>
-      </div>
-    </div>
-    <div class="cdp-right">
-      <div class="cdp-fu-header">
-        <span>Follow-up</span>
-        <button class="fu-add-btn" onclick="showFuInput()"><i class="ti ti-plus"></i> Novo</button>
-      </div>
-      <div class="fu-input-wrap" id="fu-input-wrap" style="display:none">
-        <textarea class="fu-textarea" id="fu-new-text" placeholder="Descrição do follow-up..."></textarea>
-        <input type="datetime-local" id="fu-new-date" class="fu-date-input">
-        <button class="fu-save-btn" onclick="saveFu()">Salvar</button>
-      </div>
-      <div class="fu-timeline" id="fu-timeline"></div>
-    </div>
-  </div>
-</div>
-
-<!-- EVENT MODAL -->
-<div class="modal-overlay" id="event-overlay" onclick="closeEventModal()"></div>
-<div class="modal" id="event-modal">
-  <div class="modal-header">
-    <h2 class="modal-title">Novo evento</h2>
-    <button class="modal-close" onclick="closeEventModal()"><i class="ti ti-x"></i></button>
-  </div>
-  <div class="modal-body">
-    <div class="form-grid">
-      <div class="fg full"><label>Título *</label><input type="text" id="ev-title" placeholder="Ex: Reunião com Carlos"></div>
-      <div class="fg"><label>Data</label><input type="date" id="ev-date"></div>
-      <div class="fg"><label>Horário</label><input type="time" id="ev-time"></div>
-      <div class="fg full"><label>Duração</label>
-        <select id="ev-dur">
-          <option value="30">30 minutos</option>
-          <option value="60" selected>1 hora</option>
-          <option value="90">1h30</option>
-          <option value="120">2 horas</option>
-        </select>
-      </div>
-      <div class="fg full"><label>Tipo</label>
-        <select id="ev-type">
-          <option value="reunion">Reunião</option>
-          <option value="followup">Follow-up</option>
-          <option value="apresentacao">Apresentação</option>
-          <option value="ligacao">Ligação</option>
-          <option value="outro">Outro</option>
-        </select>
-      </div>
-      <div class="fg full"><label>Notas</label><textarea id="ev-notes" placeholder="Detalhes do evento..."></textarea></div>
-      <div class="fg full">
-        <label>Lembrete</label>
-        <select id="ev-reminder">
-          <option value="">Sem lembrete</option>
-          <option value="5">5 minutos antes</option>
-          <option value="15">15 minutos antes</option>
-          <option value="30" selected>30 minutos antes</option>
-          <option value="60">1 hora antes</option>
-          <option value="custom">Personalizado</option>
-        </select>
-      </div>
-    </div>
-  </div>
-  <div class="modal-footer">
-    <button class="btn-cancel" onclick="closeEventModal()">Cancelar</button>
-    <button class="btn-save" onclick="saveEvent()"><i class="ti ti-check"></i> Salvar evento</button>
-  </div>
-</div>
-
-
-<!-- MOBILE FAB -->
-<button class="mobile-fab" id="mobile-fab" onclick="isMobile()?openStepModal():openModal()" aria-label="Novo contato">
-  <i class="ti ti-plus"></i>
-</button>
-
-<!-- PWA INSTALL BANNER -->
-<div class="pwa-banner" id="pwa-banner">
-  <div class="pwa-banner-icon">
-    <img src="data:image/png;base64,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" alt="Lead Map">
-  </div>
-  <div class="pwa-banner-text">
-    <strong>Lead Map</strong>
-    Instale o app na sua tela inicial
-  </div>
-  <button class="pwa-banner-btn" id="pwa-install-btn">Instalar</button>
-  <button class="pwa-banner-close" onclick="closePwaBanner()"><i class="ti ti-x"></i></button>
-</div>
-
-
-<!-- STEP CONTACT MODAL -->
-<div class="step-modal-overlay" id="step-overlay" onclick="closeStepModal()"></div>
-<div class="step-modal" id="step-modal">
-  <div class="step-handle"></div>
-  <div class="step-progress">
-    <div class="step-bar active" id="sbar-1"></div>
-    <div class="step-bar" id="sbar-2"></div>
-    <div class="step-bar" id="sbar-3"></div>
-  </div>
-  <div class="step-header">
-    <div class="step-step-label" id="step-label">Passo 1 de 3 · Identificação</div>
-    <div class="step-step-title" id="step-title">Quem é o contato?</div>
-  </div>
-
-  <!-- STEP 1 — Identificação -->
-  <div class="step-body" id="step-1-body">
-    <div class="step-fg">
-      <label>Nome completo *</label>
-      <input type="text" id="sf-nome" placeholder="Ex: João Silva" autocomplete="off">
-    </div>
-    <div class="step-fg">
-      <label>Gênero</label>
-      <div class="step-gender">
-        <button class="step-gender-opt active" id="sg-m" onclick="selStepGender('m')"><i class="ti ti-user"></i> Masculino</button>
-        <button class="step-gender-opt" id="sg-f" onclick="selStepGender('f')"><i class="ti ti-user"></i> Feminino</button>
-      </div>
-    </div>
-    <div class="step-fg">
-      <label>Status</label>
-      <select id="sf-status"></select>
-    </div>
-  </div>
-
-  <!-- STEP 2 — Contato -->
-  <div class="step-body" id="step-2-body" style="display:none">
-    <div class="step-fg">
-      <label>Telefone</label>
-      <input type="tel" id="sf-tel" placeholder="(00) 00000-0000">
-    </div>
-    <div class="step-fg">
-      <label>Profissão</label>
-      <input type="text" id="sf-prof" placeholder="Médico, Advogado...">
-    </div>
-    <div class="step-fg">
-      <label>Empresa / Cargo</label>
-      <input type="text" id="sf-empresa" placeholder="Hospital X — Diretor">
-    </div>
-    <div class="step-fg-row">
-      <div class="step-fg">
-        <label>Cidade</label>
-        <input type="text" id="sf-cidade" placeholder="Goiânia">
-      </div>
-      <div class="step-fg">
-        <label>Estado</label>
-        <input type="text" id="sf-es" placeholder="GO" maxlength="2">
-      </div>
-    </div>
-  </div>
-
-  <!-- STEP 3 — Origem -->
-  <div class="step-body" id="step-3-body" style="display:none">
-    <div class="step-fg step-rec-wrap">
-      <label>Recomendante</label>
-      <input type="text" id="sf-rec" placeholder="Digite para buscar..." autocomplete="off" oninput="searchStepRec(this.value)">
-      <div class="step-rec-dropdown" id="sf-rec-dropdown"></div>
-    </div>
-    <div class="step-fg">
-      <label>Relação / Referência</label>
-      <input type="text" id="sf-ref" placeholder="amigo, colega, familiar...">
-    </div>
-    <div class="step-fg">
-      <label>Filho(s)</label>
-      <input type="text" id="sf-filhos" placeholder="Ex: Lucas, Pedro, Maria">
-    </div>
-    <div class="step-fg">
-      <label>Observações</label>
-      <textarea id="sf-obs" placeholder="Notas sobre este contato..." style="min-height:80px;resize:none"></textarea>
-    </div>
-  </div>
-
-  <div class="step-footer">
-    <button class="step-btn-back" id="step-btn-back" onclick="stepBack()" style="display:none">
-      <i class="ti ti-arrow-left"></i> Voltar
-    </button>
-    <button class="step-btn-next" id="step-btn-next" onclick="stepNext()">
-      Próximo <i class="ti ti-arrow-right"></i>
-    </button>
-  </div>
-</div>
-
-<!-- STATUS SHEET -->
-<div class="sheet-overlay" id="status-overlay" onclick="closeStatusSheet()"></div>
-<div class="bottom-sheet" id="status-sheet">
-  <div class="sheet-handle"></div>
-  <div class="sheet-title" id="status-sheet-title">Alterar status</div>
-  <div class="sheet-options" id="status-options"></div>
-  <button class="sheet-cancel" onclick="closeStatusSheet()">Cancelar</button>
-</div>
-
-<!-- CONTACT MODAL -->
-<div class="modal-overlay" id="modal-overlay" onclick="closeModal()"></div>
-<div class="modal" id="contact-modal">
-  <div class="modal-header">
-    <h2 class="modal-title" id="modal-title">Novo contato</h2>
-    <button class="modal-close" onclick="closeModal()"><i class="ti ti-x"></i></button>
-  </div>
-  <div class="modal-body">
-    <div class="form-section-label">Identificação</div>
-    <div class="form-grid">
-      <div class="fg full"><label>Nome completo *</label><input type="text" id="f-nome" placeholder="Ex: João Silva" autocomplete="off"></div>
-      <div class="fg full"><label>Gênero</label>
-        <div class="gender-row">
-          <button class="gender-opt active" id="g-m" onclick="selGender('m')"><i class="ti ti-user"></i> Masculino</button>
-          <button class="gender-opt" id="g-f" onclick="selGender('f')"><i class="ti ti-user"></i> Feminino</button>
-        </div>
-      </div>
-    </div>
-    <div class="form-section-label">Origem da indicação</div>
-    <div class="form-grid">
-      <div class="fg full rec-wrap">
-        <label>Recomendante</label>
-        <input type="text" id="f-rec" placeholder="Digite para buscar..." autocomplete="off" oninput="searchRec(this.value)" onfocus="searchRec(this.value)">
-        <div class="rec-dropdown" id="rec-dropdown"></div>
-      </div>
-      <div class="fg full"><label>Relação / Referência</label><input type="text" id="f-ref" placeholder="amigo, colega, familiar..."></div>
-    </div>
-    <div class="form-section-label">Contato</div>
-    <div class="form-grid">
-      <div class="fg"><label>Telefone</label><input type="tel" id="f-tel" placeholder="(00) 00000-0000"></div>
-      <div class="fg"><label>Profissão</label><input type="text" id="f-prof" placeholder="Médico, Advogado..."></div>
-      <div class="fg full"><label>Empresa / Cargo</label><input type="text" id="f-empresa" placeholder="Hospital X — Diretor Clínico"></div>
-      <div class="fg"><label>Cidade</label><input type="text" id="f-cidade" placeholder="Goiânia"></div>
-      <div class="fg"><label>Estado</label><input type="text" id="f-es" placeholder="GO" maxlength="2"></div>
-      <div class="fg full"><label>Endereço</label><input type="text" id="f-end" placeholder="Rua, número, bairro"></div>
-    </div>
-    <div class="form-section-label">Informações adicionais</div>
-    <div class="form-grid">
-      <div class="fg full"><label>Filho(s)</label><input type="text" id="f-filhos" placeholder="Ex: Lucas, Pedro, Maria"><span class="fg-hint">Separe os nomes por vírgula</span></div>
-      <div class="fg"><label>Semana</label><input type="number" id="f-semana" placeholder="1" min="1"></div>
-      <div class="fg"><label>Status</label><select id="f-status"></select></div>
-      <div class="fg full"><label>Observações</label><textarea id="f-obs" placeholder="Notas sobre este contato..."></textarea></div>
-    </div>
-  </div>
-  <div class="modal-footer">
-    <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
-    <button class="btn-save" onclick="saveContact()"><i class="ti ti-check"></i> Salvar contato</button>
-  </div>
-</div>
-
-<script>
 /* ═══════════════════════════════════════════════════════════════
    MERCADO X — app.js
    Prudential do Brasil · Life Planner CRM
