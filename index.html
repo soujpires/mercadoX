@@ -16,6 +16,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 
+
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
   --navy:#0D1B40;--navy-mid:#162150;--navy-light:#1e2f6e;
@@ -413,18 +414,6 @@ html,body{height:100%;font-family:var(--font);background:var(--offwhite);color:v
 /* ════════════════════════════════════════════════════════
    PIPELINE / KANBAN
 ════════════════════════════════════════════════════════ */
-const COL_COLORS = {
-  'Lead':'#378ADD','Estudo':'#EF9F27','Apresentação':'#7F77DD',
-  'Negociação':'#D4537E','Ganho':'#1D9E75','Perdido':'#E24B4A'
-};
-const DEFAULT_COLS = ['Lead','Estudo','Apresentação','Negociação','Ganho','Perdido'];
-
-let kanbanCols  = JSON.parse(localStorage.getItem('lm_kcols'))  || DEFAULT_COLS.map((t,i)=>({id:'col'+i,title:t,color:COL_COLORS[t]||'#888780'}));
-let kanbanCards = JSON.parse(localStorage.getItem('lm_cards'))  || [];
-let kNextId     = Math.max(0,...kanbanCards.map(c=>parseInt(c.id.replace('kc',''))||0))+1;
-let dragCardId  = null;
-let openCardId  = null;
-
 </style>
 </head>
 <body>
@@ -945,6 +934,21 @@ let openCardId  = null;
 </div>
 
 <script>
+
+const COL_COLORS = {
+  'Lead':'#378ADD','Estudo':'#EF9F27','Apresentação':'#7F77DD',
+  'Negociação':'#D4537E','Ganho':'#1D9E75','Perdido':'#E24B4A'
+};
+const DEFAULT_COLS = ['Lead','Estudo','Apresentação','Negociação','Ganho','Perdido'];
+
+let kanbanCols  = JSON.parse(localStorage.getItem('lm_kcols'))  || DEFAULT_COLS.map((t,i)=>({id:'col'+i,title:t,color:COL_COLORS[t]||'#888780'}));
+let kanbanCards = JSON.parse(localStorage.getItem('lm_cards'))  || [];
+let kNextId     = Math.max(0,...kanbanCards.map(c=>parseInt(c.id.replace('kc',''))||0))+1;
+let dragCardId  = null;
+let openCardId  = null;
+
+
+
 /* ═══════════════════════════════════════════════════════════════
    MERCADO X — app.js
    Prudential do Brasil · Life Planner CRM
@@ -1984,6 +1988,48 @@ function getWeekStart(d){
   return date;
 }
 function agendaNav(dir){ agendaWeekStart=new Date(agendaWeekStart); agendaWeekStart.setDate(agendaWeekStart.getDate()+dir*7); renderAgenda(); }
+function renderAgenda(){
+  const headerEl=document.getElementById('ag-day-headers');
+  const timesEl=document.getElementById('ag-times');
+  const colsEl=document.getElementById('ag-cols');
+  const labelEl=document.getElementById('ag-week-label');
+  if(!headerEl||!timesEl||!colsEl||!labelEl){setTimeout(renderAgenda,100);return;}
+
+  const today=new Date();today.setHours(0,0,0,0);
+  const days=Array.from({length:7},(_,i)=>{const d=new Date(agendaWeekStart);d.setDate(d.getDate()+i);return d;});
+  const DAYS_PT=['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+  const HOURS=[8,9,10,11,12,13,14,15,16,17,18,19];
+
+  const fmt=d=>d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
+  labelEl.textContent=fmt(days[0])+' — '+fmt(days[6])+' '+days[0].getFullYear();
+
+  headerEl.innerHTML='<div class="ag-corner"></div>'+days.map((d,i)=>{
+    const isToday=d.getTime()===today.getTime();
+    const isWk=i>=5;
+    return '<div class="ag-day-col-header"><div class="ag-day-name">'+DAYS_PT[i]+'</div>'+
+      '<div class="ag-day-num'+(isToday?' today-num':isWk?' weekend':'')+'">'+(isToday?'<span style="width:32px;height:32px;background:var(--navy);color:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:15px;margin:3px auto 0">'+d.getDate()+'</span>':d.getDate())+'</div></div>';
+  }).join('');
+
+  timesEl.innerHTML=HOURS.map(h=>'<div class="ag-time-slot">'+h+'h</div>').join('');
+
+  colsEl.innerHTML=days.map((d,di)=>{
+    const isWk=di>=5;
+    const isToday=d.getTime()===today.getTime();
+    const dayStr=d.toISOString().slice(0,10);
+    const dayEvents=agendaEvents.filter(e=>(e.date||'').slice(0,10)===dayStr);
+    const cells=HOURS.map(h=>{
+      const evs=dayEvents.filter(e=>{const t=(e.time||'00:00');const eh=parseInt(t.split(':')[0]);return eh===h;});
+      const evsHtml=evs.map(ev=>{
+        const topPct=((parseInt((ev.time||'00:00').split(':')[1])||0)/60)*100;
+        const heightPx=Math.round(((ev.duration||60)/60)*56);
+        return '<div class="ag-event ag-ev-'+(ev.type||'outro')+'" style="top:'+topPct+'%;height:'+heightPx+'px" title="'+escHtml(ev.title)+'"><div class="ag-ev-title">'+escHtml(ev.title)+'</div></div>';
+      }).join('');
+      return '<div class="ag-hour-cell">'+evsHtml+'</div>';
+    }).join('');
+    return '<div class="ag-col'+(isWk?' weekend-col':'')+(isToday?' today-col':'')+'"">'+cells+'</div>';
+  }).join('');
+}
+
 function agendaGoToday(){ agendaWeekStart=getWeekStart(new Date()); renderAgenda(); }
 
 const HOURS = [8,9,10,11,12,13,14,15,16,17,18,19];
