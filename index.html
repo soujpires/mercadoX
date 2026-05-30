@@ -1669,7 +1669,10 @@ function navigate(page) {
   if (page === 'ranking')   renderRanking();
   if (page === 'reports')   renderReports();
   if (page === 'profile')   renderProfile();
-  if (page === 'pipeline')  { if(currentUser) loadKanbanDB().then(() => { renderKanban(); renderKanbanMobile(); }); else { renderKanban(); renderKanbanMobile(); } }
+  if (page === 'pipeline') {
+    const doRenderKanban = () => { if(typeof renderKanban==='function') renderKanban(); };
+    if(currentUser) loadKanbanDB().then(doRenderKanban); else doRenderKanban();
+  }
   if (page === 'agenda') {
     setTimeout(() => {
       if(currentUser) loadAgendaDB().then(() => { renderAgenda(); agendaGoToday(); });
@@ -2588,59 +2591,7 @@ function agendaGoToday(){ agendaWeekStart=getWeekStart(new Date()); renderAgenda
 const HOURS = [8,9,10,11,12,13,14,15,16,17,18,19];
 const DAYS_PT = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
 
-function renderAgenda(){
-  const headerEl=document.getElementById('ag-day-headers');
-  const timesEl=document.getElementById('ag-times');
-  const colsEl=document.getElementById('ag-cols');
-  const labelEl=document.getElementById('ag-week-label');
-  if(!headerEl||!timesEl||!colsEl||!labelEl) {
-    setTimeout(renderAgenda, 100);
-    return;
-  }
 
-  const today=new Date(); today.setHours(0,0,0,0);
-  const days=Array.from({length:7},(_,i)=>{ const d=new Date(agendaWeekStart); d.setDate(d.getDate()+i); return d; });
-
-  // Week label
-  const fmt=d=>d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'});
-  labelEl.textContent=`${fmt(days[0])} — ${fmt(days[6])} ${days[0].getFullYear()}`;
-
-  // Day headers
-  headerEl.innerHTML = `<div class="ag-corner"></div>` +
-    days.map((d,i)=>{
-      const isToday=d.getTime()===today.getTime();
-      const isWk=i>=5;
-      return `<div class="ag-day-col-header">
-        <div class="ag-day-name">${DAYS_PT[i]}</div>
-        <div class="ag-day-num${isToday?' today-num':isWk?' weekend':''}">${d.getDate()}</div>
-      </div>`;
-    }).join('');
-
-  // Times
-  timesEl.innerHTML = HOURS.map(h=>`<div class="ag-time-slot">${h}h</div>`).join('');
-
-  // Cols
-  colsEl.innerHTML = days.map((d,di)=>{
-    const isWk=di>=5;
-    const isToday=d.getTime()===today.getTime();
-    const dayStr=d.toISOString().slice(0,10);
-    const dayStr2=dayStr; const dayEvents=agendaEvents.filter(e=>(e.date||'').slice(0,10)===dayStr2);
-
-    const cells=HOURS.map(h=>{
-      const evs=dayEvents.filter(e=>{const t=(e.time||'00:00');const eh=parseInt(t.split(':')[0]);return eh===h;});
-      const evsHtml=evs.map(e=>{
-        const topPct=((parseInt(e.time.split(':')[1])||0)/60)*100;
-        const heightPx=Math.round((e.duration/60)*56);
-        return `<div class="ag-event ag-ev-${e.type}" style="top:${topPct}%;height:${heightPx}px" title="${escHtml(e.title)}">
-          <div class="ag-ev-title">${escHtml(e.title)}</div>
-        </div>`;
-      }).join('');
-      return `<div class="ag-hour-cell">${evsHtml}</div>`;
-    }).join('');
-
-    return `<div class="ag-col${isWk?' weekend-col':''}${isToday?' today-col':''}">${cells}</div>`;
-  }).join('');
-}
 
 /* EVENT MODAL */
 function openEventModal(){
