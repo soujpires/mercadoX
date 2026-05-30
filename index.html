@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="theme-color" content="#0D1B40">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Lead Map">
@@ -490,6 +491,8 @@ function renderKanban(){
     persistKanban(); renderKanban();
   };
   board.appendChild(addCol);
+  // also render mobile view
+  renderKanbanMobile();
 }
 
 function buildKCard(c, color){
@@ -2420,52 +2423,7 @@ function kanbanColTotal(cards) {
   return t > 0 ? 'R$ ' + t.toLocaleString('pt-BR', {minimumFractionDigits:0, maximumFractionDigits:0}) + '/mês' : '';
 }
 
-function renderKanban(){
-  const board = document.getElementById('kanban-board');
-  if(!board) return;
-  board.innerHTML = '';
 
-  kanbanCols.forEach(col => {
-    const cards = kanbanCards.filter(c => c.colId === col.id);
-    const colEl = document.createElement('div');
-    colEl.className = 'kanban-col';
-    colEl.dataset.colId = col.id;
-    colEl.addEventListener('dragover', e => { e.preventDefault(); colEl.classList.add('drag-over'); });
-    colEl.addEventListener('dragleave', () => colEl.classList.remove('drag-over'));
-    colEl.addEventListener('drop', e => { e.preventDefault(); colEl.classList.remove('drag-over'); dropCard(col.id); });
-
-    const colTotalStr = kanbanColTotal(cards);
-    colEl.innerHTML = `
-      <div class="col-color-bar" style="background:${col.color}"></div>
-      <div class="col-header">
-        <div class="col-title-wrap">
-          <span class="col-title">${escHtml(col.title)}</span>
-          <span class="col-count">${cards.length}</span>
-        </div>
-        <button class="col-del-btn" onclick="event.stopPropagation();deleteCol('${col.id}')" title="Excluir coluna"><i class="ti ti-trash"></i></button>
-      </div>
-      ${colTotalStr ? '<div class="col-total">Total: <strong>' + colTotalStr + '</strong></div>' : ''}
-      <div class="col-cards" id="cards-${col.id}">
-        ${cards.map(c => buildKCard(c, col.color)).join('')}
-      </div>
-      <button class="col-add-btn" onclick="event.stopPropagation();quickAddCard('${col.id}')"><i class="ti ti-plus"></i> Adicionar</button>
-    `;
-    board.appendChild(colEl);
-  });
-
-  // Add column button
-  const addCol = document.createElement('div');
-  addCol.className = 'add-col-card';
-  addCol.innerHTML = '<i class="ti ti-plus"></i> Nova coluna';
-  addCol.onclick = () => {
-    const title = prompt('Nome da nova coluna:');
-    if(!title) return;
-    const color = '#'+Math.floor(Math.random()*0xAAAAAA+0x555555).toString(16);
-    kanbanCols.push({id:'col'+Date.now(), title:title.trim(), color});
-    persistKanban(); renderKanban();
-  };
-  board.appendChild(addCol);
-}
 
 function buildKCard(c, color){
   return `<div class="k-card" id="kcard-${c.id}" draggable="true"
@@ -3676,11 +3634,7 @@ function toggleKmCol(colId) {
 }
 
 /* Override renderKanban to also render mobile version */
-const _origRenderKanban = renderKanban;
-function renderKanban() {
-  _origRenderKanban();
-  renderKanbanMobile();
-}
+/* renderKanban unified below */
 
 /* ════════════════════════════════════════════════════════
    FIX AGENDA — save event correctly
