@@ -1899,14 +1899,17 @@ function applyProfile() {
 
 /* ─── INIT ───────────────────────────────────────────────────── */
 async function init() {
-  applyProfile();
-  if (currentUser) {
-    await loadContactsDB();
-    renderList();
-    updateStats();
-  } else {
-    renderList();
-    updateStats();
+  try {
+    applyProfile();
+    navigate('home');
+    if (currentUser) {
+      loadContactsDB().then(() => { renderList(); updateStats(); });
+    } else {
+      renderList();
+      updateStats();
+    }
+  } catch(e) {
+    console.error('init error:', e);
   }
 
   // Close rec dropdown on outside click
@@ -2059,8 +2062,12 @@ function showApp() {
     ls.style.opacity = '0';
     setTimeout(() => { ls.style.display = 'none'; }, 360);
   }
-  applyProfile(); // apply profile immediately from localStorage while DB loads
-  init();
+  try {
+    applyProfile();
+    init();
+  } catch(e) {
+    console.error('showApp error:', e);
+  }
 }
 
 function showLoginScreen() {
@@ -2112,7 +2119,12 @@ async function doLogin() {
   btn.disabled = false;
 
   if (error) {
-    if (errMsg) errMsg.textContent = error.message.includes('Invalid') || error.message.includes('credentials') ? 'E-mail ou senha incorretos.' : error.message;
+    console.error('Login error:', error);
+    let msg = error.message;
+    if (msg.includes('Invalid') || msg.includes('credentials') || msg.includes('password')) msg = 'E-mail ou senha incorretos.';
+    else if (msg.includes('confirmed') || msg.includes('verify')) msg = 'E-mail não confirmado. Verifique sua caixa de entrada.';
+    else if (msg.includes('rate') || msg.includes('limit')) msg = 'Muitas tentativas. Aguarde alguns minutos.';
+    if (errMsg) errMsg.textContent = msg;
     if (errEl) errEl.classList.add('show');
     const lp = document.getElementById('login-pass'); if(lp) lp.value = '';
   }
