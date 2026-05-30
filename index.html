@@ -1670,8 +1670,15 @@ function navigate(page) {
   if (page === 'reports')   renderReports();
   if (page === 'profile')   renderProfile();
   if (page === 'pipeline') {
-    const doRenderKanban = () => { if(typeof renderKanban==='function') renderKanban(); };
-    if(currentUser) loadKanbanDB().then(doRenderKanban); else doRenderKanban();
+    if(currentUser) {
+      loadKanbanDB().then(() => {
+        if(typeof renderKanban === 'function') renderKanban();
+      }).catch(() => {
+        if(typeof renderKanban === 'function') renderKanban();
+      });
+    } else {
+      if(typeof renderKanban === 'function') renderKanban();
+    }
   }
   if (page === 'agenda') {
     setTimeout(() => {
@@ -2918,7 +2925,7 @@ async function loadKanbanDB() {
   } else {
     // First time - create default columns
     await createDefaultKanbanCols();
-    return;
+    // Don't return - fall through to render
   }
   if (cards && cards.length > 0) {
     kanbanCards = cards.map(c => ({
