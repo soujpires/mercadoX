@@ -428,6 +428,23 @@ function persistKanban(){
   localStorage.setItem('lm_cards',  JSON.stringify(kanbanCards));
 }
 
+
+function kmColTotal(cards) {
+  const t = cards.reduce((s, c) => {
+    const n = parseFloat((c.valor||'').replace(/[^0-9,.]/g,'').replace(',','.'));
+    return s + (isNaN(n) ? 0 : n);
+  }, 0);
+  return t > 0 ? '<span style="font-size:10px;color:#27500A;font-weight:500">R$' + t.toLocaleString('pt-BR',{maximumFractionDigits:0}) + '</span>' : '';
+}
+
+function kanbanColTotal(cards) {
+  const t = cards.reduce((s, c) => {
+    const n = parseFloat((c.valor||'').replace(/[^0-9,.]/g,'').replace(',','.'));
+    return s + (isNaN(n) ? 0 : n);
+  }, 0);
+  return t > 0 ? 'R$ ' + t.toLocaleString('pt-BR', {minimumFractionDigits:0, maximumFractionDigits:0}) + '/mês' : '';
+}
+
 function renderKanban(){
   const board = document.getElementById('kanban-board');
   if(!board) return;
@@ -442,6 +459,7 @@ function renderKanban(){
     colEl.addEventListener('dragleave', () => colEl.classList.remove('drag-over'));
     colEl.addEventListener('drop', e => { e.preventDefault(); colEl.classList.remove('drag-over'); dropCard(col.id); });
 
+    const colTotalStr = kanbanColTotal(cards);
     colEl.innerHTML = `
       <div class="col-color-bar" style="background:${col.color}"></div>
       <div class="col-header">
@@ -449,12 +467,13 @@ function renderKanban(){
           <span class="col-title">${escHtml(col.title)}</span>
           <span class="col-count">${cards.length}</span>
         </div>
-        <button class="col-del-btn" onclick="deleteCol('${col.id}')" title="Excluir coluna"><i class="ti ti-trash"></i></button>
+        <button class="col-del-btn" onclick="event.stopPropagation();deleteCol('${col.id}')" title="Excluir coluna"><i class="ti ti-trash"></i></button>
       </div>
+      ${colTotalStr ? '<div class="col-total">Total: <strong>' + colTotalStr + '</strong></div>' : ''}
       <div class="col-cards" id="cards-${col.id}">
         ${cards.map(c => buildKCard(c, col.color)).join('')}
       </div>
-      <button class="col-add-btn" onclick="quickAddCard('${col.id}')"><i class="ti ti-plus"></i> Adicionar</button>
+      <button class="col-add-btn" onclick="event.stopPropagation();quickAddCard('${col.id}')"><i class="ti ti-plus"></i> Adicionar</button>
     `;
     board.appendChild(colEl);
   });
@@ -2384,6 +2403,23 @@ function persistKanban(){
   localStorage.setItem('lm_cards',  JSON.stringify(kanbanCards));
 }
 
+
+function kmColTotal(cards) {
+  const t = cards.reduce((s, c) => {
+    const n = parseFloat((c.valor||'').replace(/[^0-9,.]/g,'').replace(',','.'));
+    return s + (isNaN(n) ? 0 : n);
+  }, 0);
+  return t > 0 ? '<span style="font-size:10px;color:#27500A;font-weight:500">R$' + t.toLocaleString('pt-BR',{maximumFractionDigits:0}) + '</span>' : '';
+}
+
+function kanbanColTotal(cards) {
+  const t = cards.reduce((s, c) => {
+    const n = parseFloat((c.valor||'').replace(/[^0-9,.]/g,'').replace(',','.'));
+    return s + (isNaN(n) ? 0 : n);
+  }, 0);
+  return t > 0 ? 'R$ ' + t.toLocaleString('pt-BR', {minimumFractionDigits:0, maximumFractionDigits:0}) + '/mês' : '';
+}
+
 function renderKanban(){
   const board = document.getElementById('kanban-board');
   if(!board) return;
@@ -2398,6 +2434,7 @@ function renderKanban(){
     colEl.addEventListener('dragleave', () => colEl.classList.remove('drag-over'));
     colEl.addEventListener('drop', e => { e.preventDefault(); colEl.classList.remove('drag-over'); dropCard(col.id); });
 
+    const colTotalStr = kanbanColTotal(cards);
     colEl.innerHTML = `
       <div class="col-color-bar" style="background:${col.color}"></div>
       <div class="col-header">
@@ -2405,12 +2442,13 @@ function renderKanban(){
           <span class="col-title">${escHtml(col.title)}</span>
           <span class="col-count">${cards.length}</span>
         </div>
-        <button class="col-del-btn" onclick="deleteCol('${col.id}')" title="Excluir coluna"><i class="ti ti-trash"></i></button>
+        <button class="col-del-btn" onclick="event.stopPropagation();deleteCol('${col.id}')" title="Excluir coluna"><i class="ti ti-trash"></i></button>
       </div>
+      ${colTotalStr ? '<div class="col-total">Total: <strong>' + colTotalStr + '</strong></div>' : ''}
       <div class="col-cards" id="cards-${col.id}">
         ${cards.map(c => buildKCard(c, col.color)).join('')}
       </div>
-      <button class="col-add-btn" onclick="quickAddCard('${col.id}')"><i class="ti ti-plus"></i> Adicionar</button>
+      <button class="col-add-btn" onclick="event.stopPropagation();quickAddCard('${col.id}')"><i class="ti ti-plus"></i> Adicionar</button>
     `;
     board.appendChild(colEl);
   });
@@ -3608,7 +3646,7 @@ function renderKanbanMobile() {
         <div class="km-col-bar" style="background:${col.color}"></div>
         <span class="km-col-title">${escHtml(col.title)}</span>
         <div style="display:flex;align-items:center;gap:6px;margin-left:auto">
-          ${(() => { const t = cards.reduce((s,c)=>{const n=parseFloat((c.valor||'').replace(/[^0-9,.]/g,'').replace(',','.'));return s+(isNaN(n)?0:n);},0); return t>0?`<span style="font-size:10px;color:#27500A;font-weight:500">R$${t.toLocaleString('pt-BR',{maximumFractionDigits:0})}</span>`:''; })()}
+          ${kmColTotal(cards)}
           <span class="km-col-count">${cards.length}</span>
         </div>
         <i class="ti ti-chevron-down km-col-chevron"></i>
